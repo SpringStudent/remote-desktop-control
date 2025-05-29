@@ -89,7 +89,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
         mergedTileCounter.start(1000);
         captureCompressionCounter = new CaptureCompressionCounter("captureCompression", "压缩比");
         captureCompressionCounter.start(1000);
-        captureRateCounter = new CaptureRateCounter("captureRate", "每秒远程帧数");
+        captureRateCounter = new CaptureRateCounter("captureRate", "每秒画面帧数");
         captureRateCounter.start(1000);
         counters = new ArrayList<>(Arrays.asList(captureRateCounter, receivedBitCounter, receivedTileCounter, skippedTileCounter, mergedTileCounter, captureCompressionCounter));
     }
