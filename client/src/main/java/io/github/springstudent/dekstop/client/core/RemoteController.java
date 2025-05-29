@@ -6,7 +6,6 @@ import io.github.springstudent.dekstop.client.compress.DeCompressorEngine;
 import io.github.springstudent.dekstop.client.compress.DeCompressorEngineListener;
 import io.github.springstudent.dekstop.client.monitor.*;
 import io.github.springstudent.dekstop.client.utils.DialogFactory;
-import io.github.springstudent.dekstop.client.utils.ScreenUtilities;
 import io.github.springstudent.dekstop.common.bean.CompressionMethod;
 import io.github.springstudent.dekstop.common.bean.Constants;
 import io.github.springstudent.dekstop.common.bean.Gray8Bits;
@@ -71,6 +70,8 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     private CaptureCompressionCounter captureCompressionCounter;
 
+    private CaptureRateCounter captureRateCounter;
+
     private ArrayList<Counter<?>> counters;
 
     public RemoteController() {
@@ -88,7 +89,9 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
         mergedTileCounter.start(1000);
         captureCompressionCounter = new CaptureCompressionCounter("captureCompression", "压缩比");
         captureCompressionCounter.start(1000);
-        counters = new ArrayList<>(Arrays.asList(receivedBitCounter, receivedTileCounter, skippedTileCounter, mergedTileCounter, captureCompressionCounter));
+        captureRateCounter = new CaptureRateCounter("captureRate", "每秒远程帧数");
+        captureRateCounter.start(1000);
+        counters = new ArrayList<>(Arrays.asList(captureRateCounter, receivedBitCounter, receivedTileCounter, skippedTileCounter, mergedTileCounter, captureCompressionCounter));
     }
 
     @Override
@@ -146,7 +149,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
             deCompressorEngine.handleCapture((CmdCapture) cmd);
             countReceivedBit(cmd);
         } else if (cmd.getType().equals(CmdType.ClipboardText) || cmd.getType().equals(CmdType.ClipboardTransfer)) {
-            if(needSetClipboard(cmd)){
+            if (needSetClipboard(cmd)) {
                 super.setClipboard(cmd).whenComplete((o, o2) -> RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(true));
             }
         } else if (cmd.getType().equals(CmdType.ResRemoteClipboard)) {
@@ -189,6 +192,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
         receivedTileCounter.add(capture.getDirtyTileCount(), cacheHits);
         skippedTileCounter.add(capture.getSkipped());
         mergedTileCounter.add(capture.getMerged());
+        captureRateCounter.add(1);
         captureCompressionCounter.add(capture.getDirtyTileCount(), compressionRatio);
     }
 
