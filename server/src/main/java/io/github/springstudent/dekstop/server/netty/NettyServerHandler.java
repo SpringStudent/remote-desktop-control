@@ -92,6 +92,9 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         String deviceCode = RandomUtil.randomString(8);
+        while (NettyChannelManager.getChannel(deviceCode) != null) {
+            deviceCode = RandomUtil.randomString(8);
+        }
         NettyUtils.updateDeviceCode(ctx.channel(), deviceCode);
         NettyChannelManager.addChannel(deviceCode, ctx.channel());
         ctx.channel().writeAndFlush(new CmdResCliInfo(deviceCode, "111111"));
