@@ -39,14 +39,14 @@ public class NettyChannelManager {
                 channelBrother = channelBrotherMap.remove(NettyUtils.getControllDeviceCode(channel));
             }
             if (channelBrother != null) {
-                channelBrother.stopControll(CmdReqCapture.STOP_CAPTURE_CHANNEL_INACTIVE);
+                channelBrother.stopControl(CmdReqCapture.STOP_CAPTURE_CHANNEL_INACTIVE);
             }
         }
     }
 
     public static void bindChannelBrother(Channel controller, Channel controlled) {
         NettyChannelBrother channelBrother = new NettyChannelBrother(controller, controlled);
-        channelBrother.startControll();
+        channelBrother.startControl();
         channelBrotherMap.putIfAbsent(NettyUtils.getDeviceCode(controlled), channelBrother);
 
     }
@@ -54,7 +54,7 @@ public class NettyChannelManager {
     public static NettyChannelBrother unbindChannelBrother(byte stopType, Channel controlled) {
         NettyChannelBrother channelBrother = channelBrotherMap.get(NettyUtils.getDeviceCode(controlled));
         if (channelBrother != null) {
-            channelBrother.stopControll(stopType);
+            channelBrother.stopControl(stopType);
             channelBrotherMap.remove(NettyUtils.getDeviceCode(controlled));
         }
         return channelBrother;
@@ -76,5 +76,12 @@ public class NettyChannelManager {
         return null;
     }
 
+    public static Map<String, Channel> getDeviceCodeChannelMap() {
+        return deviceCodeChannelMap;
+    }
+
+    public static Map<String, NettyChannelBrother> getChannelBrotherMap() {
+        return channelBrotherMap;
+    }
 
 }
