@@ -18,6 +18,7 @@ public class CmdResCapture extends Cmd {
     public static final byte STOP_CHANNELINACTIVE = 0x03;
     public static final byte OFFLINE = 0x04;
     public static final byte CONTROL = 0x05;
+    public static final byte PWDERROR = 0x06;
     /**
      * 被控制端响应状态码
      */

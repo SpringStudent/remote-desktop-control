@@ -109,9 +109,9 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
         }
     }
 
-    public void openSession(String deviceCode) {
+    public void openSession(String deviceCode, String password) {
         this.deviceCode = deviceCode;
-        fireCmd(new CmdReqCapture(deviceCode, CmdReqCapture.START_CAPTURE));
+        fireCmd(new CmdReqCapture(deviceCode, CmdReqCapture.START_CAPTURE, password));
     }
 
     public void closeSession() {
@@ -144,6 +144,8 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
                 showMessageDialog("被控制端不在线", JOptionPane.ERROR_MESSAGE);
             } else if (cmdResCapture.getCode() == CmdResCapture.CONTROL) {
                 showMessageDialog("请先断开其他远程控制中的连接", JOptionPane.ERROR_MESSAGE);
+            } else if (cmdResCapture.getCode() == CmdResCapture.PWDERROR) {
+                showMessageDialog("密码错误", JOptionPane.ERROR_MESSAGE);
             }
         } else if (cmd.getType().equals(CmdType.Capture)) {
             deCompressorEngine.handleCapture((CmdCapture) cmd);

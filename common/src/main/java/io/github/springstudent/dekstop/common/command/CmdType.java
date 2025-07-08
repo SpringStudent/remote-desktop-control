@@ -20,5 +20,6 @@ public enum CmdType {
     ClipboardText,
     ClipboardTransfer,
     ReqCliInfo,
-    SelectScreen;
+    SelectScreen,
+    ChangePwd,
 }

@@ -7,6 +7,7 @@ import io.github.springstudent.dekstop.client.core.RemoteScreen;
 import io.github.springstudent.dekstop.client.netty.RemoteChannelHandler;
 import io.github.springstudent.dekstop.client.netty.RemoteStateIdleHandler;
 import io.github.springstudent.dekstop.common.command.Cmd;
+import io.github.springstudent.dekstop.common.command.CmdChangePwd;
 import io.github.springstudent.dekstop.common.command.CmdResCliInfo;
 import io.github.springstudent.dekstop.common.command.CmdType;
 import io.github.springstudent.dekstop.common.log.Log;
@@ -59,14 +60,24 @@ public class RemoteClient extends RemoteFrame {
         this.connectServer();
     }
 
+    @Override
+    public void changePassword(String deviceCode, String password) {
+        if (connectStatus) {
+            CmdChangePwd cmd = new CmdChangePwd(password);
+            controller.fireCmd(cmd);
+        } else {
+            showMessageDialog("请先连接至远程服务器", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
     @Override
-    public void openRemoteScreen(String deviceCode) {
-        if (!connectStatus) {
-            showMessageDialog("请等待连接连接服务器成功", JOptionPane.ERROR_MESSAGE);
-        } else {
-            controller.openSession(deviceCode);
-        }
+    public boolean isConnect() {
+        return connectStatus;
+    }
+
+    @Override
+    public void openRemoteScreen(String deviceCode, String password) {
+        controller.openSession(deviceCode, password);
     }
 
     @Override

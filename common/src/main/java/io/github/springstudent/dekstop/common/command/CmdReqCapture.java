@@ -23,9 +23,17 @@ public class CmdReqCapture extends Cmd {
 
     private byte caputureOp;
 
+    private String password;
+
     public CmdReqCapture(String deviceCode, byte caputureOp) {
         this.deviceCode = deviceCode;
         this.caputureOp = caputureOp;
+    }
+
+    public CmdReqCapture(String deviceCode, byte caputureOp, String pasword) {
+        this.deviceCode = deviceCode;
+        this.caputureOp = caputureOp;
+        this.password = pasword;
     }
 
     public String getDeviceCode() {
@@ -36,6 +44,10 @@ public class CmdReqCapture extends Cmd {
         return caputureOp;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
     @Override
     public CmdType getType() {
         return CmdType.ReqCapture;
@@ -43,12 +55,12 @@ public class CmdReqCapture extends Cmd {
 
     @Override
     public int getWireSize() {
-        return deviceCode.length() + 4 + 1;
+        return deviceCode.length() + 4 + 1 + (password != null ? password.length() : 0) + 4;
     }
 
     @Override
     public String toString() {
-        return String.format("CmdReqCapture={deviceCode:%s,captureOp:%s}", deviceCode, caputureOp);
+        return String.format("CmdReqCapture={deviceCode:%s,captureOp:%s,deviceCode:%s}", deviceCode, caputureOp, password);
     }
 
     @Override
@@ -56,12 +68,21 @@ public class CmdReqCapture extends Cmd {
         out.writeInt(deviceCode.length());
         out.writeCharSequence(deviceCode, StandardCharsets.UTF_8);
         out.writeByte(caputureOp);
+        out.writeInt(password != null ? password.length() : 0);
+        if (password != null) {
+            out.writeCharSequence(password, StandardCharsets.UTF_8);
+        }
     }
 
     public static CmdReqCapture decode(ByteBuf in) {
         int deviceCodeLength = in.readInt();
         String deviceCode = in.readCharSequence(deviceCodeLength, StandardCharsets.UTF_8).toString();
         byte caputureOp = in.readByte();
-        return new CmdReqCapture(deviceCode, caputureOp);
+        int passwordLength = in.readInt();
+        String password = null;
+        if (passwordLength > 0) {
+            password = in.readCharSequence(passwordLength, StandardCharsets.UTF_8).toString();
+        }
+        return new CmdReqCapture(deviceCode, caputureOp, password);
     }
 }

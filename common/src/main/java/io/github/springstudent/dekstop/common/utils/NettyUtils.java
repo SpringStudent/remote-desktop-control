@@ -1,8 +1,10 @@
 package io.github.springstudent.dekstop.common.utils;
 
-import io.github.springstudent.dekstop.common.command.CmdReqCliInfo;
 import io.netty.channel.Channel;
 import io.netty.util.AttributeKey;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author ZhouNing
@@ -13,7 +15,7 @@ public class NettyUtils {
     private static final AttributeKey<String> ATTR_KEY_DEVICE_CODE = AttributeKey.valueOf("deviceCode");
     private static final AttributeKey<String> ATTR_KEY_CONTROLL_FLAG = AttributeKey.valueOf("controllFlag");
     private static final AttributeKey<String> ATTR_KEY_CONTROLL_DEVICECODE = AttributeKey.valueOf("contollDeviceCode");
-    private static final AttributeKey<CmdReqCliInfo> ATTR_KEY_CLI_INFO = AttributeKey.valueOf("cliInfo");
+    private static final AttributeKey<Map<String, Object>> ATTR_KEY_CLI_INFO = AttributeKey.valueOf("cliInfo");
 
     public static void updateReaderTime(Channel channel, Long time) {
         channel.attr(ATTR_KEY_READER_TIME).set(time.toString());
@@ -51,11 +53,17 @@ public class NettyUtils {
         return channel.attr(ATTR_KEY_CONTROLL_DEVICECODE).get();
     }
 
-    public static void updateCliInfo(Channel channel, CmdReqCliInfo cliInfo) {
-        channel.attr(ATTR_KEY_CLI_INFO).set(cliInfo);
+    public static void updateCliInfo(Channel channel, Map<String, Object> cliInfo) {
+        Map<String, Object> map = getCliInfo(channel);
+        if (map == null) {
+            map = new HashMap<>();
+        } else {
+            map.putAll(cliInfo);
+        }
+        channel.attr(ATTR_KEY_CLI_INFO).set(map);
     }
 
-    public static CmdReqCliInfo getCliInfo(Channel channel) {
+    public static Map<String, Object> getCliInfo(Channel channel) {
         return channel.attr(ATTR_KEY_CLI_INFO).get();
     }
 }

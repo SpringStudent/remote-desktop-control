@@ -67,7 +67,7 @@ public abstract class RemoteControll implements ClipboardOwner {
         this.channel = channel;
     }
 
-    protected void fireCmd(Cmd cmd) {
+    public void fireCmd(Cmd cmd) {
         if (channel != null && channel.isActive()) {
             channel.writeAndFlush(cmd);
         } else {
