@@ -62,12 +62,8 @@ public class RemoteClient extends RemoteFrame {
 
     @Override
     public void changePassword(String deviceCode, String password) {
-        if (connectStatus) {
-            CmdChangePwd cmd = new CmdChangePwd(password);
-            controller.fireCmd(cmd);
-        } else {
-            showMessageDialog("请先连接至远程服务器", JOptionPane.ERROR_MESSAGE);
-        }
+        CmdChangePwd cmd = new CmdChangePwd(password);
+        controller.fireCmd(cmd);
     }
 
     @Override
@@ -161,6 +157,7 @@ public class RemoteClient extends RemoteFrame {
         remoteScreen.close();
         controller.stop();
         controlled.stop();
+        connectStatus = false;
         updateConnectionStatus(false);
         setControlledAndCloseSessionLabelVisible(false);
         setChannel(null);

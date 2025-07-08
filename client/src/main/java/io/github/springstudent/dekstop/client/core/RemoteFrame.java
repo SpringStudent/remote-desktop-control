@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.text.PlainDocument;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -113,6 +114,16 @@ public abstract class RemoteFrame extends JFrame {
         this.passwordField = new JTextField(10);
         passwordField.setText("");
         passwordField.setEditable(false);
+        passwordField.setDocument(new PlainDocument() {
+            @Override
+            public void insertString(int offs, String str, javax.swing.text.AttributeSet a) throws javax.swing.text.BadLocationException {
+                if (str != null && ReUtil.isMatch("^[a-zA-Z0-9]+$", str)) {
+                    super.insertString(offs, str, a);
+                } else {
+                    showMessageDialog("密码只能为数字与字母的组合", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
         passwordPanel.add(passwordField, BorderLayout.CENTER);
         JButton editButton = new JButton("✎");
         editButton.setMargin(new Insets(0, 2, 0, 2));
@@ -120,15 +131,19 @@ public abstract class RemoteFrame extends JFrame {
         editButton.setBorder(BorderFactory.createEmptyBorder());
         editButton.setContentAreaFilled(false);
         editButton.addActionListener(e -> {
-            passwordField.setEditable(true);
-            passwordField.requestFocusInWindow();
+            if (isConnect()) {
+                passwordField.setEditable(true);
+                passwordField.requestFocusInWindow();
+            } else {
+                showMessageDialog("请等待连接连接服务器成功", JOptionPane.ERROR_MESSAGE);
+            }
         });
         passwordField.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
                 passwordField.setEditable(false);
                 passwordField.transferFocus();
-                changePassword(deviceCodeField.getText(),passwordField.getText());
+                changePassword(deviceCodeField.getText(), passwordField.getText());
             }
         });
         passwordPanel.add(editButton, BorderLayout.EAST);
@@ -143,7 +158,7 @@ public abstract class RemoteFrame extends JFrame {
         gbc.weighty = 1.0;
         gbc.gridx = 0;
         gbc.gridy = 0;
-        bottomPanel.add(new JLabel("远程控制设备:"), gbc);
+        bottomPanel.add(new JLabel("远程设备代码:"), gbc);
         gbc.gridx = 1;
         this.remoteDeviceField = new JTextField(15);
         bottomPanel.add(remoteDeviceField, gbc);
@@ -154,9 +169,9 @@ public abstract class RemoteFrame extends JFrame {
             if (StrUtil.isEmpty(remoteDeviceField.getText())) {
                 showMessageDialog("请输入远程设备代码", JOptionPane.ERROR_MESSAGE);
             } else if (remoteDeviceField.getText().equals(deviceCodeField.getText())) {
-                showMessageDialog("远程控制设备代码不能为自己", JOptionPane.ERROR_MESSAGE);
+                showMessageDialog("远程设备代码不能为自己", JOptionPane.ERROR_MESSAGE);
             } else if (!ReUtil.isMatch("^[a-zA-Z0-9]+$", remoteDeviceField.getText())) {
-                showMessageDialog("远程控制设备代码只能为数字与字母的组合", JOptionPane.ERROR_MESSAGE);
+                showMessageDialog("远程设备代码只能为数字与字母的组合", JOptionPane.ERROR_MESSAGE);
             } else {
                 if (!isConnect()) {
                     showMessageDialog("请等待连接连接服务器成功", JOptionPane.ERROR_MESSAGE);
@@ -211,7 +226,7 @@ public abstract class RemoteFrame extends JFrame {
         });
     }
 
-    public abstract void changePassword(String deviceCode,String password);
+    public abstract void changePassword(String deviceCode, String password);
 
     public void showMessageDialog(Object msg, int messageType) {
         JOptionPane.showMessageDialog(this, msg, "提示", messageType);
