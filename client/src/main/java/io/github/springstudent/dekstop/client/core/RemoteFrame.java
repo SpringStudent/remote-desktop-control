@@ -2,6 +2,7 @@ package io.github.springstudent.dekstop.client.core;
 
 import cn.hutool.core.util.ReUtil;
 import cn.hutool.core.util.StrUtil;
+import io.github.springstudent.dekstop.common.utils.EmptyUtils;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -141,9 +142,13 @@ public abstract class RemoteFrame extends JFrame {
         passwordField.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
-                passwordField.setEditable(false);
-                passwordField.transferFocus();
-                changePassword(deviceCodeField.getText(), passwordField.getText());
+                if (EmptyUtils.isEmpty(passwordField.getText())) {
+                    showMessageDialog("密码不能为空", JOptionPane.ERROR_MESSAGE);
+                } else {
+                    passwordField.setEditable(false);
+                    passwordField.transferFocus();
+                    changePassword(deviceCodeField.getText(), passwordField.getText());
+                }
             }
         });
         passwordPanel.add(editButton, BorderLayout.EAST);
