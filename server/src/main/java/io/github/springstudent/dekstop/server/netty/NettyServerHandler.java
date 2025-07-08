@@ -114,6 +114,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
         NettyChannelManager.addChannel(deviceCode, ctx.channel());
         Map<String, Object> map = new HashMap();
         map.put("password", password);
+        NettyUtils.updateCliInfo(ctx.channel(), map);
         ctx.channel().writeAndFlush(new CmdResCliInfo(deviceCode, password));
     }
 

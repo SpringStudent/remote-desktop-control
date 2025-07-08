@@ -57,9 +57,8 @@ public class NettyUtils {
         Map<String, Object> map = getCliInfo(channel);
         if (map == null) {
             map = new HashMap<>();
-        } else {
-            map.putAll(cliInfo);
         }
+        map.putAll(cliInfo);
         channel.attr(ATTR_KEY_CLI_INFO).set(map);
     }
 
