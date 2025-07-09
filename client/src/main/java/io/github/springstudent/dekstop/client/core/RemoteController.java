@@ -131,7 +131,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
             } else if (cmdResOpen.getCode() == CmdResOpen.CONTROL) {
                 showMessageDialog("请先断开其他远程控制中的连接", JOptionPane.ERROR_MESSAGE);
             } else if (cmdResOpen.getCode() == CmdResOpen.OK) {
-                RemoteClient.getRemoteClient().openRemoteScreen();
+                SwingUtilities.invokeLater(() -> RemoteClient.getRemoteClient().openRemoteScreen());
             }
         } else if (cmd.getType().equals(CmdType.ResCapture)) {
             CmdResCapture cmdResCapture = (CmdResCapture) cmd;
