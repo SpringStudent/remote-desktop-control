@@ -181,17 +181,7 @@ public abstract class RemoteFrame extends JFrame {
                 if (!isConnect()) {
                     showMessageDialog("请等待连接连接服务器成功", JOptionPane.ERROR_MESSAGE);
                 } else {
-                    String password = JOptionPane.showInputDialog(
-                            this,
-                            "请输入远程设备密码：",
-                            "输入密码",
-                            JOptionPane.PLAIN_MESSAGE
-                    );
-                    if (password != null && !password.trim().isEmpty()) {
-                        openRemoteScreen(remoteDeviceField.getText(), password.trim());
-                    } else if (password != null) {
-                        showMessageDialog("密码不能为空", JOptionPane.ERROR_MESSAGE);
-                    }
+                    beforeOpenRemoteScreen(remoteDeviceField.getText());
                 }
             }
         });
@@ -233,8 +223,20 @@ public abstract class RemoteFrame extends JFrame {
 
     public abstract void changePassword(String deviceCode, String password);
 
-    public void showMessageDialog(Object msg, int messageType) {
-        JOptionPane.showMessageDialog(this, msg, "提示", messageType);
+    protected abstract void beforeOpenRemoteScreen(String text);
+
+    public final void openRemoteScreen() {
+        String password = JOptionPane.showInputDialog(
+                this,
+                "请输入远程设备密码：",
+                "输入密码",
+                JOptionPane.PLAIN_MESSAGE
+        );
+        if (password != null && !password.trim().isEmpty()) {
+            openRemoteScreen(remoteDeviceField.getText(), password.trim());
+        } else if (password != null) {
+            showMessageDialog("密码不能为空", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     public abstract boolean isConnect();
@@ -264,4 +266,7 @@ public abstract class RemoteFrame extends JFrame {
         this.closeSessionLabel.setVisible(flag);
     }
 
+    public void showMessageDialog(Object msg, int messageType) {
+        JOptionPane.showMessageDialog(this, msg, "提示", messageType);
+    }
 }

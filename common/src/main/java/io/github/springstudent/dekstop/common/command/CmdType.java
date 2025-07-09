@@ -6,8 +6,10 @@ package io.github.springstudent.dekstop.common.command;
  **/
 public enum CmdType {
     ReqPing,
+    ReqOpen,
     ReqCapture,
     ReqRemoteClipboard,
+    ResOpen,
     ResCliInfo,
     ResCapture,
     ResPong,

@@ -6,10 +6,7 @@ import io.github.springstudent.dekstop.client.core.RemoteFrame;
 import io.github.springstudent.dekstop.client.core.RemoteScreen;
 import io.github.springstudent.dekstop.client.netty.RemoteChannelHandler;
 import io.github.springstudent.dekstop.client.netty.RemoteStateIdleHandler;
-import io.github.springstudent.dekstop.common.command.Cmd;
-import io.github.springstudent.dekstop.common.command.CmdChangePwd;
-import io.github.springstudent.dekstop.common.command.CmdResCliInfo;
-import io.github.springstudent.dekstop.common.command.CmdType;
+import io.github.springstudent.dekstop.common.command.*;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.protocol.NettyDecoder;
 import io.github.springstudent.dekstop.common.protocol.NettyEncoder;
@@ -69,6 +66,11 @@ public class RemoteClient extends RemoteFrame {
     @Override
     public boolean isConnect() {
         return connectStatus;
+    }
+
+    @Override
+    protected void beforeOpenRemoteScreen(String text) {
+        controller.fireCmd(new CmdReqOpen(text));
     }
 
     @Override
