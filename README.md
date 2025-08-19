@@ -88,3 +88,4 @@ streaming media: https://github.com/SpringStudent/a-da
   otherwise, some programs on the controlled end may not be controllable due to lack of permissions.
 * For the best control experience, it is recommended to set the input language preference on the control end to "
   English (United States)".
+* The stability of this project has been verified in production environments and is ready for reliable use.
