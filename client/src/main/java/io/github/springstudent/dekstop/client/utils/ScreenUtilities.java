@@ -1,10 +1,17 @@
 package io.github.springstudent.dekstop.client.utils;
 
+import com.sun.jna.Pointer;
+import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.ptr.PointerByReference;
+import io.github.springstudent.dekstop.client.jni.WinDesktop;
 import io.github.springstudent.dekstop.common.bean.Gray8Bits;
+import io.github.springstudent.dekstop.common.log.Log;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 
 import static java.lang.Math.min;
@@ -62,7 +69,7 @@ public final class ScreenUtilities {
     }
 
     public static boolean inScreenBounds(int x, int y) {
-       return sharedScreenSize.contains(x, y);
+        return sharedScreenSize.contains(x, y);
     }
 
     public static int getNumberOfScreens() {
@@ -91,11 +98,41 @@ public final class ScreenUtilities {
         return bb.array();
     }
 
-    private static int[] captureRGB(Rectangle bounds) {
+
+    private static int[] robotCaptureRGB(Rectangle bounds) {
         BufferedImage image = ROBOT.createScreenCapture(bounds);
         final int imageHeight = min(image.getHeight(), bounds.height);
         final int imageWidth = min(image.getWidth(), bounds.width);
         return image.getRGB(0, 0, imageWidth, imageHeight, null, 0, imageWidth);
+    }
+
+    private static int[] captureRGB(Rectangle bounds) {
+        if (WinDesktop.isWindowsAndLockScreen()) {
+            try {
+                PointerByReference dataRef = new PointerByReference();
+                IntByReference sizeRef = new IntByReference();
+                int success = WinDesktop.INSTANCE.CaptureDesktopToBytesJNA(dataRef, sizeRef);
+                if (success == 1) {
+                    Pointer data = dataRef.getValue();
+                    int size = sizeRef.getValue();
+                    byte[] bytes = data.getByteArray(0, size);
+                    WinDesktop.INSTANCE.FreeBytesJNA(data);
+                    try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)) {
+                        BufferedImage image = ImageIO.read(bais);
+                        if (image != null) {
+                            int width = Math.min(image.getWidth(), bounds.width);
+                            int height = Math.min(image.getHeight(), bounds.height);
+                            return image.getRGB(0, 0, width, height, null, 0, width);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.error("WinDesktop capture failed, fallback to Robot", e);
+            }
+            return robotCaptureRGB(bounds);
+        } else {
+            return robotCaptureRGB(bounds);
+        }
     }
 
     private static byte[] rgbToGray8(Gray8Bits quantization, int[] rgb) {

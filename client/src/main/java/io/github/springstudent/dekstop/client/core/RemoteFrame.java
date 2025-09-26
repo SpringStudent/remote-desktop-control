@@ -24,7 +24,10 @@ public abstract class RemoteFrame extends JFrame {
     private JLabel controlledLabel;
     private JLabel closeSessionLabel;
 
+    private char osId;
+
     public RemoteFrame() {
+        osId = System.getProperty("os.name").toLowerCase().charAt(0);
         initFrame();
         initTitle();
         initPannel();
@@ -268,5 +271,9 @@ public abstract class RemoteFrame extends JFrame {
 
     public void showMessageDialog(Object msg, int messageType) {
         JOptionPane.showMessageDialog(this, msg, "提示", messageType);
+    }
+
+    public char getOsId() {
+        return osId;
     }
 }

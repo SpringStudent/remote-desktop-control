@@ -40,4 +40,5 @@ public class RemoteChannelHandler extends SimpleChannelInboundHandler<Cmd> {
         Log.error("client exceptionCaught error", cause);
         super.exceptionCaught(ctx, cause);
     }
+
 }

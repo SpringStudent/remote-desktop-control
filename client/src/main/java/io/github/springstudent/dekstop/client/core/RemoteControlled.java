@@ -5,6 +5,7 @@ import io.github.springstudent.dekstop.client.capture.CaptureEngine;
 import io.github.springstudent.dekstop.client.capture.RobotCaptureFactory;
 import io.github.springstudent.dekstop.client.compress.CompressorEngine;
 import io.github.springstudent.dekstop.client.compress.CompressorEngineListener;
+import io.github.springstudent.dekstop.client.jni.WinDesktop;
 import io.github.springstudent.dekstop.client.utils.ScreenUtilities;
 import io.github.springstudent.dekstop.common.bean.CompressionMethod;
 import io.github.springstudent.dekstop.common.bean.Constants;
@@ -19,6 +20,9 @@ import java.awt.event.InputEvent;
 import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 import static java.awt.event.KeyEvent.*;
 
@@ -42,12 +46,9 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
 
     private final Set<Integer> pressedKeys = new HashSet<>();
 
-    private char osId;
-
     private Robot robot;
 
     public RemoteControlled() {
-        osId = System.getProperty("os.name").toLowerCase().charAt(0);
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();
         captureEngine = new CaptureEngine(new RobotCaptureFactory(-1));
@@ -112,7 +113,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
                 }
             });
         } else if ((cmd.getType().equals(CmdType.ClipboardText) || cmd.getType().equals(CmdType.ClipboardTransfer))) {
-            if(needSetClipboard(cmd)){
+            if (needSetClipboard(cmd)) {
                 super.setClipboard(cmd).whenComplete((o, o2) -> {
                     fireCmd(new CmdResRemoteClipboard());
                 });
@@ -135,6 +136,18 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
         }
     }
 
+    public void pauseCapture() {
+        if (captureEngine != null) {
+            captureEngine.setPause(true);
+        }
+    }
+
+    public void resumeCapture() {
+        if (captureEngine != null) {
+            captureEngine.setPause(false);
+        }
+    }
+
     @Override
     public String getType() {
         return Constants.CONTROLLED;
@@ -147,33 +160,49 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
 
     @Override
     public void handleMessage(CmdMouseControl message) {
-        if (message.isPressed()) {
-            if (message.isButton1()) {
-                robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            } else if (message.isButton2()) {
-                robot.mousePress(InputEvent.BUTTON2_DOWN_MASK);
-            } else if (message.isButton3()) {
-                robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+        if (WinDesktop.isWindowsAndLockScreen()) {
+            int info = 0;
+            if (message.isPressed()) {
+                if (message.isButton1()) info |= 0x1;
+                if (message.isButton2()) info |= 0x4;
+                if (message.isButton3()) info |= 0x10;
+            } else if (message.isReleased()) {
+                if (message.isButton1()) info |= 0x2;
+                if (message.isButton2()) info |= 0x8;
+                if (message.isButton3()) info |= 0x20;
             }
-        } else if (message.isReleased()) {
-            if (message.isButton1()) {
-                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-            } else if (message.isButton2()) {
-                robot.mouseRelease(InputEvent.BUTTON2_DOWN_MASK);
-            } else if (message.isButton3()) {
-                robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+            final int fInfo = info;
+            CompletableFuture.runAsync(() -> WinDesktop.INSTANCE.SimulateMouseEventJNA(message.getX(), message.getY(), fInfo, message.getRotations()));
+        } else {
+            if (message.isPressed()) {
+                if (message.isButton1()) {
+                    robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                } else if (message.isButton2()) {
+                    robot.mousePress(InputEvent.BUTTON2_DOWN_MASK);
+                } else if (message.isButton3()) {
+                    robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+                }
+            } else if (message.isReleased()) {
+                if (message.isButton1()) {
+                    robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                } else if (message.isButton2()) {
+                    robot.mouseRelease(InputEvent.BUTTON2_DOWN_MASK);
+                } else if (message.isButton3()) {
+                    robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+                }
+            } else if (message.isWheel()) {
+                robot.mouseWheel(message.getRotations());
             }
-        } else if (message.isWheel()) {
-            robot.mouseWheel(message.getRotations());
+            int x = message.getX();
+            int y = message.getY();
+            if (!ScreenUtilities.inScreenBounds(x, y)) {
+                x = x + ScreenUtilities.getSharedScreenSize().x;
+                y = y + ScreenUtilities.getSharedScreenSize().y;
+            }
+            robot.mouseMove(x, y);
         }
-        int x = message.getX();
-        int y = message.getY();
-        if (!ScreenUtilities.inScreenBounds(x, y)) {
-            x =  x + ScreenUtilities.getSharedScreenSize().x ;
-            y =  y + ScreenUtilities.getSharedScreenSize().y ;
-        }
-        robot.mouseMove(x, y);
     }
+
 
     @Override
     public void handleMessage(CmdKeyControl message) {
@@ -197,16 +226,19 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
         int keyCode = escapeByOsId(message.getKeyCode());
         if (keyCode != VK_UNDEFINED) {
             if (keyCode == VK_ALT_GRAPH && File.separatorChar != UNIX_SEPARATOR_CHAR) {
-                robot.keyPress(VK_CONTROL);
+//                robot.keyPress(VK_CONTROL);
+                nativePressKey(VK_CONTROL);
                 pressedKeys.add(VK_CONTROL);
-                robot.keyPress(VK_ALT);
+//                robot.keyPress(VK_ALT);
+                nativePressKey(VK_ALT);
                 pressedKeys.add(VK_ALT);
                 Log.debug("KeyCode ALT_GRAPH %s", () -> String.valueOf(message));
                 return;
             }
             Log.debug("KeyCode %s", () -> String.valueOf(message));
             try {
-                robot.keyPress(keyCode);
+//                robot.keyPress(keyCode);
+                nativePressKey(keyCode);
                 pressedKeys.add(keyCode);
                 return;
             } catch (IllegalArgumentException ie) {
@@ -217,12 +249,28 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
         if (message.getKeyChar() != CHAR_UNDEFINED) {
             int dec = message.getKeyChar();
             Log.debug("KeyChar as unicode " + dec + " %s", () -> String.valueOf(message));
-            pressedKeys.forEach(robot::keyRelease);
+            pressedKeys.forEach(kc -> nativeReleaseKey(kc));
             typeUnicode(dec);
-            pressedKeys.forEach(robot::keyPress);
+            pressedKeys.forEach(kc -> nativeReleaseKey(kc));
             return;
         }
         Log.warn("Undefined KeyChar " + message);
+    }
+
+    private void nativePressKey(int keyCode) {
+        if (WinDesktop.isWindowsAndLockScreen()) {
+            CompletableFuture.runAsync(() -> WinDesktop.INSTANCE.SimulateKeyEventJNA(keyCode, 1));
+        } else {
+            robot.keyPress(keyCode);
+        }
+    }
+
+    private void nativeReleaseKey(int keyCode) {
+        if (WinDesktop.isWindowsAndLockScreen()) {
+            CompletableFuture.runAsync(() -> WinDesktop.INSTANCE.SimulateKeyEventJNA(keyCode, 0));
+        } else {
+            robot.keyRelease(keyCode);
+        }
     }
 
     private void typeUnicode(int keyCode) {
@@ -237,16 +285,19 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
         int keyCode = escapeByOsId(message.getKeyCode());
         if (keyCode != VK_UNDEFINED) {
             if (keyCode == VK_ALT_GRAPH && File.separatorChar != UNIX_SEPARATOR_CHAR) {
-                robot.keyRelease(VK_ALT);
+//                robot.keyRelease(VK_ALT);
+                nativeReleaseKey(VK_ALT);
                 pressedKeys.remove(VK_ALT);
-                robot.keyRelease(VK_CONTROL);
+//                robot.keyRelease(VK_CONTROL);
+                nativeReleaseKey(VK_CONTROL);
                 pressedKeys.remove(VK_CONTROL);
                 Log.debug("KeyCode ALT_GRAPH %s", () -> String.valueOf(message));
                 return;
             }
             Log.debug("KeyCode %s", () -> String.valueOf(message));
             try {
-                robot.keyRelease(keyCode);
+//                robot.keyRelease(keyCode);
+                nativeReleaseKey(keyCode);
                 pressedKeys.remove(keyCode);
             } catch (IllegalArgumentException ie) {
                 Log.warn("Error releasing KeyCode " + message);
@@ -255,7 +306,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
     }
 
     private int escapeByOsId(int keyCode) {
-        if (osId == 'm' && keyCode == VK_WINDOWS) {
+        if (RemoteClient.getRemoteClient().getOsId() == 'm' && keyCode == VK_WINDOWS) {
             return VK_META;
         } else {
             return keyCode;
@@ -266,33 +317,45 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
      * Unicode characters are typed in decimal on Windows ä => 228
      */
     private void typeWindowsUnicode(int keyCode) {
-        robot.keyPress(VK_ALT);
+//        robot.keyPress(VK_ALT);
+        nativePressKey(VK_ALT);
         // simulate a numpad key press for each digit
         for (int i = 3; i >= 0; --i) {
             int code = keyCode / (int) (Math.pow(10, i)) % 10 + VK_NUMPAD0;
-            robot.keyPress(code);
-            robot.keyRelease(code);
+//            robot.keyPress(code);
+//            robot.keyRelease(code);
+            nativePressKey(code);
+            nativeReleaseKey(code);
         }
-        robot.keyRelease(VK_ALT);
+//        robot.keyRelease(VK_ALT);
+        nativeReleaseKey(VK_ALT);
     }
 
     /**
      * Unicode characters are typed in hex on Linux ä => e4
      */
     private void typeLinuxUnicode(int keyCode) {
-        robot.keyPress(VK_CONTROL);
-        robot.keyPress(VK_SHIFT);
-        robot.keyPress(VK_U);
-        robot.keyRelease(VK_U);
+//        robot.keyPress(VK_CONTROL);
+//        robot.keyPress(VK_SHIFT);
+//        robot.keyPress(VK_U);
+//        robot.keyRelease(VK_U);
+        nativePressKey(VK_CONTROL);
+        nativePressKey(VK_SHIFT);
+        nativePressKey(VK_U);
+        nativeReleaseKey(VK_U);
         char[] charArray = Integer.toHexString(keyCode).toCharArray();
         // simulate a key press/release for each char
         // char[] { 'e', '4' }  => keyPress(69), keyRelease(69), keyPress(52), keyRelease(52)
         for (char c : charArray) {
             int code = Character.toUpperCase(c);
-            robot.keyPress(code);
-            robot.keyRelease(code);
+//            robot.keyPress(code);
+//            robot.keyRelease(code);
+            nativePressKey(code);
+            nativeReleaseKey(code);
         }
-        robot.keyRelease(VK_SHIFT);
-        robot.keyRelease(VK_CONTROL);
+//        robot.keyRelease(VK_SHIFT);
+//        robot.keyRelease(VK_CONTROL);
+        nativeReleaseKey(VK_SHIFT);
+        nativeReleaseKey(VK_CONTROL);
     }
 }
