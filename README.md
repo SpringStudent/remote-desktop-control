@@ -89,3 +89,5 @@ streaming media: https://github.com/SpringStudent/a-da
 * For the best control experience, it is recommended to set the input language preference on the control end to "
   English (United States)".
 * The stability of this project has been verified in production environments and is ready for reliable use.
+* In the Windows lock screen scenario, it is not possible to capture screenshots or simulate keyboard and mouse events. Refer to the following project for a solution
+  https://github.com/SpringStudent/windows-lock-helper
