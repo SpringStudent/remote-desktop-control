@@ -21,9 +21,6 @@ import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.function.Consumer;
-
 import static java.awt.event.KeyEvent.*;
 
 /**
@@ -133,18 +130,6 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
                 captureEngine.addListener(compressorEngine);
             }
             captureEngine.start();
-        }
-    }
-
-    public void pauseCapture() {
-        if (captureEngine != null) {
-            captureEngine.setPause(true);
-        }
-    }
-
-    public void resumeCapture() {
-        if (captureEngine != null) {
-            captureEngine.setPause(false);
         }
     }
 

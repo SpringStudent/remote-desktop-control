@@ -42,15 +42,12 @@ public class CaptureEngine implements ReConfigurable<CaptureEngineConfiguration>
 
     private boolean reconfigured;
 
-    private AtomicBoolean pause;
-
     public CaptureEngine(CaptureFactory captureFactory) {
         this.captureFactory = captureFactory;
         this.captureDimension = captureFactory.getDimension();
         final int x = (captureDimension.width + TILE_DIMENSION.width - 1) / TILE_DIMENSION.width;
         final int y = (captureDimension.height + TILE_DIMENSION.height - 1) / TILE_DIMENSION.height;
         this.previousCapture = new long[x * y];
-        this.pause = new AtomicBoolean(false);
         resetPreviousCapture();
 
     }
@@ -129,38 +126,32 @@ public class CaptureEngine implements ReConfigurable<CaptureEngineConfiguration>
                     reconfigured = false;
                 }
             }
-            if(!pause.get()){
-                ++captureCount;
-                ++captureId;
-                final byte[] pixels = captureColors ? captureFactory.captureScreen(null) : captureFactory.captureScreen(quantization);
 
-                if (pixels == null) {
-                    // testing purpose (!)
-                    Log.info("CaptureFactory has finished!");
-                    break;
-                }
-                fireOnRawCaptured(captureId, pixels); // debugging purpose (!)
-                final CaptureTile[] dirty = computeDirtyTiles(pixels);
+            ++captureCount;
+            ++captureId;
+            final byte[] pixels = captureColors ? captureFactory.captureScreen(null) : captureFactory.captureScreen(quantization);
 
-                if (dirty != null) {
-                    final Capture capture = new Capture(captureId, reset.get(), skipped, 0, captureDimension, TILE_DIMENSION, dirty);
-                    fireOnCaptured(capture); // might update the capture (i.e., merging with previous not sent yet)
-                    updatePreviousCapture(capture);
-                    reset.set(false);
-                }
-
-                skipped = syncOnTick(start, captureCount, captureId, tick);
-                captureCount += skipped;
-                captureId += skipped;
-            }else{
-                Thread.sleep(30);
+            if (pixels == null) {
+                // testing purpose (!)
+                Log.info("CaptureFactory has finished!");
+                break;
             }
+            fireOnRawCaptured(captureId, pixels); // debugging purpose (!)
+            final CaptureTile[] dirty = computeDirtyTiles(pixels);
+
+            if (dirty != null) {
+                final Capture capture = new Capture(captureId, reset.get(), skipped, 0, captureDimension, TILE_DIMENSION, dirty);
+                fireOnCaptured(capture); // might update the capture (i.e., merging with previous not sent yet)
+                updatePreviousCapture(capture);
+                reset.set(false);
+            }
+
+            skipped = syncOnTick(start, captureCount, captureId, tick);
+            captureCount += skipped;
+            captureId += skipped;
+
         }
         Log.info("The capture engine has been stopped!");
-    }
-
-    public void setPause(boolean flag){
-        pause.set(flag);
     }
 
     private static int syncOnTick(final long start, final int captureCount, final int captureId, final long tick) throws InterruptedException {

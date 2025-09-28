@@ -17,6 +17,33 @@ import java.nio.file.Files;
 public interface WinDesktop extends Library {
     WinDesktop INSTANCE = loadWinDesktop();
 
+    WinDesktop NULL_INSTANCE = new WinDesktop() {
+        @Override
+        public boolean IsCurrentInputDesktopJNA() {
+            return false;
+        }
+
+        @Override
+        public int CaptureDesktopToBytesJNA(PointerByReference data, IntByReference size) {
+            return 0;
+        }
+
+        @Override
+        public void FreeBytesJNA(Pointer data) {
+
+        }
+
+        @Override
+        public void SimulateKeyEventJNA(int keyCode, int pressed) {
+
+        }
+
+        @Override
+        public void SimulateMouseEventJNA(int x, int y, int info, int rotations) {
+
+        }
+    };
+
     boolean IsCurrentInputDesktopJNA();
 
 //    boolean handleOpenInputDesktopJNA();
@@ -35,10 +62,10 @@ public interface WinDesktop extends Library {
                 String dllPath = extractDll("/dll/WinDesktop64.dll");
                 return Native.loadLibrary(dllPath, WinDesktop.class);
             } catch (Exception e) {
-                return null;
+                return NULL_INSTANCE;
             }
         } else {
-            return null;
+            return NULL_INSTANCE;
         }
     }
 
