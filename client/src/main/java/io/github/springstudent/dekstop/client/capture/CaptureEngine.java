@@ -216,20 +216,30 @@ public class CaptureEngine implements ReConfigurable<CaptureEngineConfiguration>
     /**
      * Screen-rectangle buffer to tile-rectangle buffer. Use pixelSize 4 for colored and 1 for gray pixels.
      */
-    private static byte[] createTile(byte[] capture, int width, int tw, int th, int tx, int ty, int pixelSize) {
+    private static byte[] createTile(
+            byte[] capture, int width, int tw, int th, int tx, int ty, int pixelSize) {
+
         final int capacity = tw * th * pixelSize;
         final byte[] tile = new byte[capacity];
         final int maxSrcPos = capture.length;
-        final int maxDestPos = capacity - tw * pixelSize + 1;
+
         int srcPos = ty * width * pixelSize + tx * pixelSize;
         int destPos = 0;
-        while (destPos < maxDestPos && srcPos < maxSrcPos) {
-            System.arraycopy(capture, srcPos, tile, destPos, tw * pixelSize);
-            srcPos += width * pixelSize;
-            destPos += tw * pixelSize;
+
+        final int screenRowIncrement = width * pixelSize;
+        final int tileRowIncrement = tw * pixelSize;
+        while (destPos < capacity && srcPos < maxSrcPos) {
+            int copyLen = Math.min(tileRowIncrement, maxSrcPos - srcPos);
+            copyLen = Math.min(copyLen, capacity - destPos);
+            if (copyLen <= 0) break;
+            System.arraycopy(capture, srcPos, tile, destPos, copyLen);
+
+            srcPos += screenRowIncrement;
+            destPos += tileRowIncrement;
         }
         return tile;
     }
+
 
     private void fireOnCaptured(Capture capture) {
         listeners.getListeners().forEach(listener -> listener.onCaptured(capture));
