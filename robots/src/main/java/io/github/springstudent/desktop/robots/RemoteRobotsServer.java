@@ -126,6 +126,6 @@ public class RemoteRobotsServer {
     }
 
     public static void main(String[] args) {
-        new RemoteRobotsServer(55555).start();
+        new RemoteRobotsServer(56789).start();
     }
 }
