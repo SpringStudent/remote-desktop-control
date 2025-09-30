@@ -6,6 +6,7 @@ import io.github.springstudent.dekstop.common.bean.FileInfo;
 import io.github.springstudent.dekstop.common.bean.RemoteClipboard;
 import io.github.springstudent.dekstop.common.bean.TransferableFiles;
 import io.github.springstudent.dekstop.common.command.CmdResRemoteClipboard;
+import io.github.springstudent.dekstop.common.command.CmdType;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.remote.RemoteClpboardListener;
 import io.github.springstudent.dekstop.common.remote.RemoteScreenRobot;
@@ -32,7 +33,7 @@ import static java.lang.System.getProperty;
  * @author ZhouNing
  * @date 2025/9/30 8:40
  **/
-public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListener, ClipboardOwner {
+public class RobotsHandler implements RemoteScreenRobot, RemoteClpboardListener, ClipboardOwner {
 
     private Robot robot;
 
@@ -42,7 +43,7 @@ public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListen
 
     private String downloadDir;
 
-    public RemoteRobotsImpl() {
+    public RobotsHandler() {
         this.rootDir = getProperty("java.io.tmpdir") + File.separator + "remoteDeskopControll";
         if (FileUtil.exist(rootDir)) {
             FileUtil.clean(rootDir);
@@ -77,19 +78,19 @@ public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListen
                     files = (java.util.List<File>) clipboard.getData(DataFlavor.javaFileListFlavor);
                 } catch (Exception e) {
                     Log.error("clipboard.getData(DataFlavor.javaFileListFlavor)", e);
-                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_ERROR, "file", null, request.getId());
+                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_ERROR, CmdType.ClipboardTransfer.name(), null, request.getId());
                 }
                 if (!files.isEmpty()) {
                     final List<File> finalFiles = files;
                     try {
                         doSendClipboard(request, finalFiles);
-                        return new SendClipboardResponse(CmdResRemoteClipboard.OK, "file", request.getDeviceCode(), request.getId());
+                        return new SendClipboardResponse(CmdResRemoteClipboard.OK, CmdType.ClipboardTransfer.name(), request.getDeviceCode(), request.getId());
                     } catch (Exception e) {
                         Log.error("send clipboardFiles error", e);
-                        return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_SENDDATA_ERROR, "file", request.getDeviceCode(), request.getId());
+                        return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_SENDDATA_ERROR, CmdType.ClipboardTransfer.name(), request.getDeviceCode(), request.getId());
                     }
                 } else {
-                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_EMPTY, "file", request.getDeviceCode(), request.getId());
+                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_EMPTY, CmdType.ClipboardTransfer.name(), request.getDeviceCode(), request.getId());
                 }
             });
         } else if (clipboard.isDataFlavorAvailable(DataFlavor.imageFlavor)) {
@@ -99,7 +100,7 @@ public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListen
                     image = (BufferedImage) clipboard.getData(DataFlavor.imageFlavor);
                 } catch (Exception e) {
                     Log.error("clipboard.getData(DataFlavor.imageFlavor) error", e);
-                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_ERROR, "file", null, request.getId());
+                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_ERROR, CmdType.ClipboardTransfer.name(), null, request.getId());
                 }
                 final BufferedImage clipboardImage = image;
                 if (image != null) {
@@ -108,17 +109,17 @@ public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListen
                         outputFile = new File(this.rootDir + File.separator + IdUtil.fastSimpleUUID() + ".png");
                         ImageIO.write(clipboardImage, "png", outputFile);
                         doSendClipboard(request, Arrays.asList(outputFile));
-                        return new SendClipboardResponse(CmdResRemoteClipboard.OK, "file", request.getDeviceCode(), request.getId());
+                        return new SendClipboardResponse(CmdResRemoteClipboard.OK, CmdType.ClipboardTransfer.name(), request.getDeviceCode(), request.getId());
                     } catch (Exception e) {
                         Log.error("send clipboardImage error", e);
-                        return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_SENDDATA_ERROR, "file", null, request.getId());
+                        return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_SENDDATA_ERROR, CmdType.ClipboardTransfer.name(), null, request.getId());
                     } finally {
                         if (outputFile != null) {
                             FileUtil.del(outputFile);
                         }
                     }
                 } else {
-                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_EMPTY, "file", null, request.getId());
+                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_EMPTY, CmdType.ClipboardTransfer.name(), null, request.getId());
                 }
             });
         } else if (clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor)) {
@@ -128,13 +129,13 @@ public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListen
                     text = (String) clipboard.getData(DataFlavor.stringFlavor);
                 } catch (Exception e) {
                     Log.error("clipboard.getData(DataFlavor.stringFlavor) error", e);
-                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_ERROR, "text", null, request.getId());
+                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_ERROR, CmdType.ClipboardText.name(), null, request.getId());
                 }
                 if (EmptyUtils.isNotEmpty(text)) {
                     final String finalText = text;
-                    return new SendClipboardResponse(CmdResRemoteClipboard.OK, "text", finalText, request.getId());
+                    return new SendClipboardResponse(CmdResRemoteClipboard.OK, CmdType.ClipboardText.name(), finalText, request.getId());
                 } else {
-                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_EMPTY, "text", null, request.getId());
+                    return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_EMPTY, CmdType.ClipboardText.name(), null, request.getId());
                 }
             });
         } else {
@@ -190,10 +191,10 @@ public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListen
     public CompletableFuture<SetClipboardResponse> setClipboard(SetClipboardRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                if (request.getClipboardType().equals("text")) {
+                if (request.getClipboardType().equals(CmdType.ClipboardText.name())) {
                     StringSelection stringSelection = new StringSelection((request.getContent()));
                     Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, this);
-                } else if (request.getClipboardType().equals("file")) {
+                } else if (request.getClipboardType().equals(CmdType.ClipboardTransfer.name())) {
                     String deviceCode = request.getContent();
                     Map<String, Object> map = new HashMap<>();
                     map.put(REQUEST_URL_KEY, request.getClipboardServer());

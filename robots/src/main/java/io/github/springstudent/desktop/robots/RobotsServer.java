@@ -13,7 +13,7 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class RemoteRobotsServer {
+public class RobotsServer {
 
     private volatile boolean running;
 
@@ -21,11 +21,11 @@ public class RemoteRobotsServer {
 
     private ServerSocket serverSocket;
 
-    private RemoteRobotsImpl remoteRobots;
+    private RobotsHandler remoteRobots;
 
-    public RemoteRobotsServer(int port) {
+    public RobotsServer(int port) {
         this.port = port;
-        this.remoteRobots = new RemoteRobotsImpl();
+        this.remoteRobots = new RobotsHandler();
     }
 
     /**
@@ -126,6 +126,6 @@ public class RemoteRobotsServer {
     }
 
     public static void main(String[] args) {
-        new RemoteRobotsServer(55555).start();
+        new RobotsServer(55555).start();
     }
 }
