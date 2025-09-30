@@ -315,6 +315,7 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
             Log.error("Failed to send capture request: " + e.getMessage());
             return CompletableFuture.completedFuture(null);
         }
+
     }
 
     public abstract void handleCmd(Cmd cmd);

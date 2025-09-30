@@ -17,6 +17,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.Math.min;
 import static java.util.Arrays.stream;
@@ -114,7 +115,8 @@ public final class ScreenUtilities {
         if (WinDesktop.isWindowsAndLockScreen()) {
             try {
                 CompletableFuture<RobotCaptureResponse> captureFuture = RemoteClient.getRemoteClient().getControlled().sendRobotCapture();
-                if (captureFuture.get() != null && captureFuture.get().getScreenBytes() != null) {
+                RobotCaptureResponse response = captureFuture.get(30, TimeUnit.MILLISECONDS);
+                if (response != null && response.getScreenBytes() != null) {
                     try (ByteArrayInputStream bais = new ByteArrayInputStream(captureFuture.get().getScreenBytes())) {
                         BufferedImage image = ImageIO.read(bais);
                         if (image != null) {
