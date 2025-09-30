@@ -9,21 +9,20 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.net.SocketException;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 控制方客户端
  *
  * @author ZhouNing
- * @date 2025/9/30 8:39
+ * @date 2025/9/30
  **/
 public class RobotsClient {
     private final int port;
-    private volatile boolean running = false;
-
+    private volatile boolean connected = false;
+    private final AtomicBoolean running = new AtomicBoolean(true);
     private Socket socket;
     private ObjectOutputStream out;
     private ObjectInputStream in;
@@ -31,7 +30,15 @@ public class RobotsClient {
     private final ConcurrentHashMap<Integer, CompletableFuture<SendClipboardResponse>> sendClipboardFutureMap;
     private final ConcurrentHashMap<Integer, CompletableFuture<SetClipboardResponse>> setClipboardFutureMap;
 
-    private final ExecutorService executor = Executors.newFixedThreadPool(1);
+    /**
+     * 监听线程池
+     */
+    private final ExecutorService listenExecutor = Executors.newCachedThreadPool();
+
+    /**
+     * 重连线程池
+     */
+    private final ScheduledExecutorService retryExecutor = Executors.newSingleThreadScheduledExecutor();
 
     private final int reconnectDelayMillis = 1500;
 
@@ -45,33 +52,32 @@ public class RobotsClient {
     /**
      * 尝试连接（可能失败）
      */
-    private void connect() throws IOException {
+    private synchronized void connect() throws IOException {
+        if (!running.get() || connected) {
+            return;
+        }
         this.socket = new Socket("localhost", port);
         this.out = new ObjectOutputStream(socket.getOutputStream());
         this.in = new ObjectInputStream(socket.getInputStream());
-        this.running = true;
-        executor.execute(this::listenServer);
+        this.connected = true;
+        listenExecutor.submit(this::listenServer);
         Log.info("Connected to server :" + port);
     }
 
     /**
-     * 自动重连
+     * 定时重连
      */
     private void connectWithRetry() {
-        executor.execute(() -> {
-            while (!running) {
-                try {
-                    connect();
-                    return;
-                } catch (IOException e) {
-                    Log.warn("Connect failed, retrying in " + reconnectDelayMillis + "ms", e);
-                    try {
-                        Thread.sleep(reconnectDelayMillis);
-                    } catch (InterruptedException ignored) {
-                    }
-                }
+        retryExecutor.scheduleWithFixedDelay(() -> {
+            if (!running.get() || connected) {
+                return;
             }
-        });
+            try {
+                connect();
+            } catch (IOException e) {
+                Log.warn("Connect failed, will retry in " + reconnectDelayMillis + "ms", e);
+            }
+        }, 0, reconnectDelayMillis, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -79,18 +85,16 @@ public class RobotsClient {
      */
     private void listenServer() {
         try {
-            while (running && !socket.isClosed()) {
+            while (running.get() && connected && !socket.isClosed()) {
                 Object obj = in.readObject();
                 handleServerMessage(obj);
             }
-        } catch (EOFException eof) {
+        } catch (EOFException | SocketException eof) {
             Log.info("Server closed connection.");
         } catch (Exception e) {
             Log.error("Error reading from server", e);
         } finally {
-            close();
-            Log.info("Try reconnecting...");
-            connectWithRetry();
+            disconnectAndCleanup();
         }
     }
 
@@ -98,7 +102,6 @@ public class RobotsClient {
      * 处理不同的响应消息
      */
     private void handleServerMessage(Object obj) {
-        Log.info("Received from server: " + obj);
         if (obj instanceof SendClipboardResponse) {
             SendClipboardResponse response = (SendClipboardResponse) obj;
             CompletableFuture<SendClipboardResponse> future = getSendClipboardFuture(response.getId());
@@ -121,30 +124,63 @@ public class RobotsClient {
     }
 
     /**
-     * 关闭连接
+     * 关闭连接并清理资源
      */
-    public void close() {
-        running = false;
+    private synchronized void disconnectAndCleanup() {
+        if (!connected) {
+            return;
+        }
+        connected = false;
+        failAllPendingFutures(new IOException("Connection lost"));
         try {
-            if (in != null) in.close();
+            if (in != null) {
+                in.close();
+            }
         } catch (IOException ignored) {
         }
         try {
-            if (out != null) out.close();
+            if (out != null) {
+                out.close();
+            }
         } catch (IOException ignored) {
         }
         try {
-            if (socket != null && !socket.isClosed()) socket.close();
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
         } catch (IOException ignored) {
         }
-        Log.info("Disconnected from server.");
+        Log.info("Disconnected from server. Waiting for reconnect...");
+    }
+
+    /**
+     * 完全关闭客户端
+     */
+    public synchronized void close() {
+        if (!running.compareAndSet(true, false)) {
+            return;
+        }
+        disconnectAndCleanup();
+        listenExecutor.shutdownNow();
+        retryExecutor.shutdownNow();
+        Log.info("RobotsClient stopped.");
+    }
+
+    /**
+     * 未完成的 future 在断开时全部失败
+     */
+    private void failAllPendingFutures(Throwable t) {
+        sendClipboardFutureMap.forEach((id, f) -> f.completeExceptionally(t));
+        sendClipboardFutureMap.clear();
+        setClipboardFutureMap.forEach((id, f) -> f.completeExceptionally(t));
+        setClipboardFutureMap.clear();
     }
 
     /**
      * 通用发送方法
      */
     public synchronized void send(Object obj) throws IOException {
-        if (!running) {
+        if (!connected || socket == null || socket.isClosed()) {
             throw new IOException("Not connected to server.");
         }
         out.writeObject(obj);
@@ -170,4 +206,3 @@ public class RobotsClient {
         return setClipboardFutureMap.remove(id);
     }
 }
-

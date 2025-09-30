@@ -33,14 +33,13 @@ public class RobotsServer {
      */
     public void start() {
         running = true;
-        try (ServerSocket server = new ServerSocket(port)) {
-            this.serverSocket = server;
+        try {
+            this.serverSocket = new ServerSocket(port);
             Log.info("Robots Server started on port " + port);
-
             while (running) {
                 try {
-                    Socket socket = server.accept();
-                    Log.info("Client connected: " + socket.getInetAddress());
+                    Socket socket = serverSocket.accept();
+                    Log.info("Client connected");
                     new Thread(() -> handleClient(socket)).start();
                 } catch (IOException e) {
                     if (running) {
@@ -58,13 +57,10 @@ public class RobotsServer {
     }
 
     private void handleClient(Socket socket) {
-        try (Socket client = socket;
-             ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
-             ObjectInputStream in = new ObjectInputStream(client.getInputStream())) {
+        try (Socket client = socket; ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream()); ObjectInputStream in = new ObjectInputStream(client.getInputStream())) {
             while (running) {
                 Object obj = in.readObject();
                 if (obj != null) {
-                    Log.info("Received obj: " + obj);
                     if (obj instanceof RobotMouseControl) {
                         remoteRobots.handleMessage((RobotMouseControl) obj);
                     } else if (obj instanceof RobotKeyControl) {
