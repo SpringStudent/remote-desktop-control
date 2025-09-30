@@ -17,7 +17,6 @@ import io.github.springstudent.dekstop.common.remote.RemoteScreenListener;
 import io.github.springstudent.dekstop.common.remote.bean.SendClipboardRequest;
 import io.github.springstudent.dekstop.common.remote.bean.SendClipboardResponse;
 import io.github.springstudent.dekstop.common.remote.bean.SetClipboardRequest;
-import io.github.springstudent.dekstop.common.remote.bean.SetClipboardResponse;
 
 import javax.swing.*;
 import java.awt.*;
@@ -80,7 +79,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     private ArrayList<Counter<?>> counters;
 
-    public RemoteController(RemoteRobotsClient robotsClient) {
+    public RemoteController(RobotsClient robotsClient) {
         super(robotsClient);
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();

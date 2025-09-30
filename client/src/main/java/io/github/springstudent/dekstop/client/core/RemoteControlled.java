@@ -46,7 +46,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
 
     private final Set<Integer> pressedKeys = new HashSet<>();
 
-    public RemoteControlled(RemoteRobotsClient robotsClient) {
+    public RemoteControlled(RobotsClient robotsClient) {
         super(robotsClient);
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();

@@ -24,9 +24,9 @@ import java.util.concurrent.CompletableFuture;
 public abstract class RemoteControll implements RemoteScreenRobot, RemoteClpboardListener {
     private Channel channel;
 
-    private RemoteRobotsClient robotsClient;
+    private RobotsClient robotsClient;
 
-    public RemoteControll(RemoteRobotsClient robotsClient) {
+    public RemoteControll(RobotsClient robotsClient) {
         this.robotsClient = robotsClient;
     }
 
@@ -111,17 +111,17 @@ public abstract class RemoteControll implements RemoteScreenRobot, RemoteClpboar
     protected SetClipboardRequest beforeSetClipboard(Cmd cmd) {
         if (cmd.getType().equals(CmdType.ClipboardText) && !((CmdClipboardText) cmd).getControlType().equals(getType())) {
             CmdClipboardText cmdClipboardText = (CmdClipboardText) cmd;
-            return new SetClipboardRequest("text", cmdClipboardText.getPayload(), RemoteClient.getRemoteClient().getClipboardServer());
+            return new SetClipboardRequest(CmdType.ClipboardText.name(), cmdClipboardText.getPayload(), RemoteClient.getRemoteClient().getClipboardServer());
         } else if (cmd.getType().equals(CmdType.ClipboardTransfer) && !((CmdClipboardTransfer) cmd).getControlType().equals(getType())) {
-            return new SetClipboardRequest("file", ((CmdClipboardTransfer) cmd).getDeviceCode(), RemoteClient.getRemoteClient().getClipboardServer());
+            return new SetClipboardRequest(CmdType.ClipboardTransfer.name(), ((CmdClipboardTransfer) cmd).getDeviceCode(), RemoteClient.getRemoteClient().getClipboardServer());
         }
         return null;
     }
 
     protected void afterSendClipboard(SendClipboardResponse response) {
-        if (response.getClipboarType().equals("text")) {
+        if (response.getClipboarType().equals(CmdType.ClipboardText.name())) {
             fireCmd(new CmdClipboardText(response.getContent(), getType()));
-        } else {
+        } else if (response.getClipboarType().equals(CmdType.ClipboardTransfer.name())) {
             fireCmd(new CmdClipboardTransfer(response.getContent(), getType()));
         }
     }

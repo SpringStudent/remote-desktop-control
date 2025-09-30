@@ -20,7 +20,7 @@ import java.util.concurrent.Executors;
  * @author ZhouNing
  * @date 2025/9/30 8:39
  **/
-public class RemoteRobotsClient {
+public class RobotsClient {
     private final int port;
     private volatile boolean running = false;
 
@@ -35,7 +35,7 @@ public class RemoteRobotsClient {
 
     private final int reconnectDelayMillis = 1500;
 
-    public RemoteRobotsClient(int port) {
+    public RobotsClient(int port) {
         this.port = port;
         this.sendClipboardFutureMap = new ConcurrentHashMap<>(32);
         this.setClipboardFutureMap = new ConcurrentHashMap<>(32);

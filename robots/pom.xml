@@ -22,7 +22,7 @@
     </dependencies>
 
     <build>
-        <finalName>RemoteRobots</finalName>
+        <finalName>RobotsServer</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -43,7 +43,7 @@
                     <archive>
                         <manifest>
                             <!-- 此处指定main方法入口的class -->
-                            <mainClass>io.github.springstudent.desktop.robots.RemoteRobotsServer</mainClass>
+                            <mainClass>io.github.springstudent.desktop.robots.RobotsServer</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

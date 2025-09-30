@@ -9,19 +9,31 @@ import io.github.springstudent.dekstop.common.command.CmdResRemoteClipboard;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.remote.RemoteClpboardListener;
 import io.github.springstudent.dekstop.common.remote.RemoteScreenRobot;
-import io.github.springstudent.dekstop.common.remote.bean.*;
+import io.github.springstudent.dekstop.common.remote.bean.RobotKeyControl;
+import io.github.springstudent.dekstop.common.remote.bean.RobotMouseControl;
+import io.github.springstudent.dekstop.common.remote.bean.SendClipboardRequest;
+import io.github.springstudent.dekstop.common.remote.bean.SendClipboardResponse;
+import io.github.springstudent.dekstop.common.remote.bean.SetClipboardRequest;
+import io.github.springstudent.dekstop.common.remote.bean.SetClipboardResponse;
 import io.github.springstudent.dekstop.common.utils.EmptyUtils;
 import io.github.springstudent.dekstop.common.utils.FileUtilities;
 import io.github.springstudent.dekstop.common.utils.RemoteUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
-import java.awt.datatransfer.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.ClipboardOwner;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.*;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static io.github.springstudent.dekstop.common.utils.RemoteUtils.REQUEST_URL_KEY;
@@ -32,7 +44,7 @@ import static java.lang.System.getProperty;
  * @author ZhouNing
  * @date 2025/9/30 8:40
  **/
-public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListener, ClipboardOwner {
+public class RobotsHandler implements RemoteScreenRobot, RemoteClpboardListener, ClipboardOwner {
 
     private Robot robot;
 
@@ -42,7 +54,7 @@ public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListen
 
     private String downloadDir;
 
-    public RemoteRobotsImpl() {
+    public RobotsHandler() {
         this.rootDir = getProperty("java.io.tmpdir") + File.separator + "remoteDeskopControll";
         if (FileUtil.exist(rootDir)) {
             FileUtil.clean(rootDir);
@@ -72,9 +84,9 @@ public class RemoteRobotsImpl implements RemoteScreenRobot, RemoteClpboardListen
         //兼容mac javaFileListFlavor必须放在第一位
         if (clipboard.isDataFlavorAvailable(DataFlavor.javaFileListFlavor)) {
             result = CompletableFuture.supplyAsync(() -> {
-                java.util.List<File> files = null;
+                List<File> files = null;
                 try {
-                    files = (java.util.List<File>) clipboard.getData(DataFlavor.javaFileListFlavor);
+                    files = (List<File>) clipboard.getData(DataFlavor.javaFileListFlavor);
                 } catch (Exception e) {
                     Log.error("clipboard.getData(DataFlavor.javaFileListFlavor)", e);
                     return new SendClipboardResponse(CmdResRemoteClipboard.CLIPBOARD_GETDATA_ERROR, "file", null, request.getId());
