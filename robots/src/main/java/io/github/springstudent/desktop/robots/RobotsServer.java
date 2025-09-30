@@ -6,7 +6,6 @@ import io.github.springstudent.dekstop.common.remote.bean.RobotCaputureReq;
 import io.github.springstudent.dekstop.common.remote.bean.RobotKeyControl;
 import io.github.springstudent.dekstop.common.remote.bean.RobotMouseControl;
 
-import javax.swing.*;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -35,14 +34,6 @@ public class RobotsServer {
      */
     public void start() {
         running = true;
-        // 创建 JFrame 绑定当前交互式桌面
-        SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame();
-            frame.setUndecorated(true);
-            frame.setSize(0, 0);
-            frame.setLocationRelativeTo(null);
-            frame.setVisible(true);
-        });
         try {
             this.serverSocket = new ServerSocket(port);
             Log.info("Robots Server started on port " + port);

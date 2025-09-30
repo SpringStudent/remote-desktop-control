@@ -161,7 +161,7 @@ public class CaptureEngine implements ReConfigurable<CaptureEngineConfiguration>
             final long capturePause = captureMaxEnd - System.currentTimeMillis();
             if (capturePause < 0) {
                 ++delayedCaptureCount;
-                Log.warn(format("Skipping capture (%d) %s", captureId + delayedCaptureCount, UnitUtilities.toElapsedTime(-capturePause)));
+//                Log.warn(format("Skipping capture (%d) %s", captureId + delayedCaptureCount, UnitUtilities.toElapsedTime(-capturePause)));
             } else if (capturePause > 0) {
                 Thread.sleep(capturePause);
                 return delayedCaptureCount;
