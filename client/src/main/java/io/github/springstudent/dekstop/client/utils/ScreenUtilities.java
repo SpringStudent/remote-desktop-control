@@ -3,9 +3,12 @@ package io.github.springstudent.dekstop.client.utils;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
+import io.github.springstudent.dekstop.client.RemoteClient;
 import io.github.springstudent.dekstop.client.jni.WinDesktop;
 import io.github.springstudent.dekstop.common.bean.Gray8Bits;
 import io.github.springstudent.dekstop.common.log.Log;
+import io.github.springstudent.dekstop.common.remote.bean.RobotCaptureResponse;
+import io.github.springstudent.dekstop.common.remote.bean.RobotCaputureReq;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -13,6 +16,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
 
 import static java.lang.Math.min;
 import static java.util.Arrays.stream;
@@ -109,15 +113,9 @@ public final class ScreenUtilities {
     private static int[] captureRGB(Rectangle bounds) {
         if (WinDesktop.isWindowsAndLockScreen()) {
             try {
-                PointerByReference dataRef = new PointerByReference();
-                IntByReference sizeRef = new IntByReference();
-                int success = WinDesktop.INSTANCE.CaptureDesktopToBytesJNA(dataRef, sizeRef);
-                if (success == 1) {
-                    Pointer data = dataRef.getValue();
-                    int size = sizeRef.getValue();
-                    byte[] bytes = data.getByteArray(0, size);
-                    WinDesktop.INSTANCE.FreeBytesJNA(data);
-                    try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)) {
+                CompletableFuture<RobotCaptureResponse> captureFuture = RemoteClient.getRemoteClient().getControlled().sendRobotCapture();
+                if (captureFuture.get() != null && captureFuture.get().getScreenBytes() != null) {
+                    try (ByteArrayInputStream bais = new ByteArrayInputStream(captureFuture.get().getScreenBytes())) {
                         BufferedImage image = ImageIO.read(bais);
                         if (image != null) {
                             int width = Math.min(image.getWidth(), bounds.width);

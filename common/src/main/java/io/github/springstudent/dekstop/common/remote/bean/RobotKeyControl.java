@@ -6,8 +6,9 @@ public class RobotKeyControl implements Serializable {
 
     private int keyCode;
 
-    private boolean pressed;
-    public RobotKeyControl(int keyCode,boolean pressed) {
+    private Integer pressed;
+
+    public RobotKeyControl(int keyCode, Integer pressed) {
         this.keyCode = keyCode;
         this.pressed = pressed;
     }
@@ -16,7 +17,7 @@ public class RobotKeyControl implements Serializable {
         return keyCode;
     }
 
-    public boolean getPressed() {
+    public Integer getPressed() {
         return pressed;
     }
 }

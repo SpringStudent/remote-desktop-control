@@ -1,11 +1,12 @@
 package io.github.springstudent.desktop.robots;
 
 import io.github.springstudent.dekstop.common.log.Log;
+import io.github.springstudent.dekstop.common.remote.bean.RobotCaptureResponse;
+import io.github.springstudent.dekstop.common.remote.bean.RobotCaputureReq;
 import io.github.springstudent.dekstop.common.remote.bean.RobotKeyControl;
 import io.github.springstudent.dekstop.common.remote.bean.RobotMouseControl;
-import io.github.springstudent.dekstop.common.remote.bean.SendClipboardRequest;
-import io.github.springstudent.dekstop.common.remote.bean.SetClipboardRequest;
 
+import javax.swing.*;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -14,7 +15,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class RobotsServer {
-
     private volatile boolean running;
 
     private final int port;
@@ -22,6 +22,8 @@ public class RobotsServer {
     private ServerSocket serverSocket;
 
     private RobotsHandler remoteRobots;
+
+    private static char osId = System.getProperty("os.name").toLowerCase().charAt(0);
 
     public RobotsServer(int port) {
         this.port = port;
@@ -33,6 +35,14 @@ public class RobotsServer {
      */
     public void start() {
         running = true;
+        // 创建 JFrame 绑定当前交互式桌面
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame();
+            frame.setUndecorated(true);
+            frame.setSize(0, 0);
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
+        });
         try {
             this.serverSocket = new ServerSocket(port);
             Log.info("Robots Server started on port " + port);
@@ -62,40 +72,23 @@ public class RobotsServer {
                 Object obj = in.readObject();
                 if (obj != null) {
                     if (obj instanceof RobotMouseControl) {
-                        remoteRobots.handleMessage((RobotMouseControl) obj);
+                        remoteRobots.handleMouseControl((RobotMouseControl) obj);
                     } else if (obj instanceof RobotKeyControl) {
-                        remoteRobots.handleMessage((RobotKeyControl) obj);
-                    } else if (obj instanceof SendClipboardRequest) {
-                        remoteRobots.sendClipboard((SendClipboardRequest) obj).whenComplete((response, ex) -> {
+                        remoteRobots.handleKeyControl((RobotKeyControl) obj);
+                    } else if (obj instanceof RobotCaputureReq) {
+                        new Thread(() -> {
                             try {
-                                if (ex == null && !socket.isClosed()) {
-                                    synchronized (out) {
-                                        out.writeObject(response);
-                                        out.flush();
-                                        out.reset();
-                                        Log.info("Sent response: " + response);
-                                    }
+                                byte[] screenBytes = remoteRobots.captureScreen();
+                                RobotCaptureResponse response = new RobotCaptureResponse(screenBytes, ((RobotCaputureReq) obj).getId());
+                                synchronized (out) {
+                                    out.writeObject(response);
+                                    out.flush();
+                                    out.reset();
                                 }
-                            } catch (IOException e) {
-                                Log.error("Failed to send SendClipboardResponse", e);
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
-                        });
-
-                    } else if (obj instanceof SetClipboardRequest) {
-                        remoteRobots.setClipboard((SetClipboardRequest) obj).whenComplete((response, ex) -> {
-                            try {
-                                if (ex == null && !socket.isClosed()) {
-                                    synchronized (out) {
-                                        out.writeObject(response);
-                                        out.flush();
-                                        out.reset();
-                                        Log.info("Sent response: " + response);
-                                    }
-                                }
-                            } catch (IOException e) {
-                                Log.error("Failed to send SetClipboardResponse", e);
-                            }
-                        });
+                        }).start();
                     }
                 }
             }
@@ -121,7 +114,12 @@ public class RobotsServer {
         Log.info("Robots Server stopped.");
     }
 
+    public static char getOsId() {
+        return osId;
+    }
+
     public static void main(String[] args) {
-        new RobotsServer(56789).start();
+        RobotsServer server = new RobotsServer(55678);
+        server.start();
     }
 }

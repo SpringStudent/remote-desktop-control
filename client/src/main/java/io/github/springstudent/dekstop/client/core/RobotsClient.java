@@ -1,8 +1,7 @@
 package io.github.springstudent.dekstop.client.core;
 
 import io.github.springstudent.dekstop.common.log.Log;
-import io.github.springstudent.dekstop.common.remote.bean.SendClipboardResponse;
-import io.github.springstudent.dekstop.common.remote.bean.SetClipboardResponse;
+import io.github.springstudent.dekstop.common.remote.bean.RobotCaptureResponse;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -27,9 +26,6 @@ public class RobotsClient {
     private ObjectOutputStream out;
     private ObjectInputStream in;
 
-    private final ConcurrentHashMap<Integer, CompletableFuture<SendClipboardResponse>> sendClipboardFutureMap;
-    private final ConcurrentHashMap<Integer, CompletableFuture<SetClipboardResponse>> setClipboardFutureMap;
-
     /**
      * 监听线程池
      */
@@ -42,10 +38,10 @@ public class RobotsClient {
 
     private final int reconnectDelayMillis = 1500;
 
+    private ConcurrentHashMap<Long, CompletableFuture<RobotCaptureResponse>> captureFutureMap = new ConcurrentHashMap<>();
+
     public RobotsClient(int port) {
         this.port = port;
-        this.sendClipboardFutureMap = new ConcurrentHashMap<>(32);
-        this.setClipboardFutureMap = new ConcurrentHashMap<>(32);
         connectWithRetry();
     }
 
@@ -87,7 +83,13 @@ public class RobotsClient {
         try {
             while (running.get() && connected && !socket.isClosed()) {
                 Object obj = in.readObject();
-                handleServerMessage(obj);
+                if (obj instanceof RobotCaptureResponse) {
+                    RobotCaptureResponse response = (RobotCaptureResponse) obj;
+                    CompletableFuture<RobotCaptureResponse> future = removeCaptureFuture(response.getId());
+                    if (future != null) {
+                        future.complete(response);
+                    }
+                }
             }
         } catch (EOFException | SocketException eof) {
             Log.info("Server closed connection.");
@@ -99,31 +101,6 @@ public class RobotsClient {
     }
 
     /**
-     * 处理不同的响应消息
-     */
-    private void handleServerMessage(Object obj) {
-        if (obj instanceof SendClipboardResponse) {
-            SendClipboardResponse response = (SendClipboardResponse) obj;
-            CompletableFuture<SendClipboardResponse> future = getSendClipboardFuture(response.getId());
-            if (future != null) {
-                future.complete(response);
-            } else {
-                Log.warn("No future found for SendClipboardResponse id=" + response.getId());
-            }
-        } else if (obj instanceof SetClipboardResponse) {
-            SetClipboardResponse response = (SetClipboardResponse) obj;
-            CompletableFuture<SetClipboardResponse> future = getSetClipboardFuture(response.getId());
-            if (future != null) {
-                future.complete(response);
-            } else {
-                Log.warn("No future found for SetClipboardResponse id=" + response.getId());
-            }
-        } else {
-            Log.warn("Unknown message type received: " + obj.getClass().getName());
-        }
-    }
-
-    /**
      * 关闭连接并清理资源
      */
     private synchronized void disconnectAndCleanup() {
@@ -131,7 +108,6 @@ public class RobotsClient {
             return;
         }
         connected = false;
-        failAllPendingFutures(new IOException("Connection lost"));
         try {
             if (in != null) {
                 in.close();
@@ -166,15 +142,6 @@ public class RobotsClient {
         Log.info("RobotsClient stopped.");
     }
 
-    /**
-     * 未完成的 future 在断开时全部失败
-     */
-    private void failAllPendingFutures(Throwable t) {
-        sendClipboardFutureMap.forEach((id, f) -> f.completeExceptionally(t));
-        sendClipboardFutureMap.clear();
-        setClipboardFutureMap.forEach((id, f) -> f.completeExceptionally(t));
-        setClipboardFutureMap.clear();
-    }
 
     /**
      * 通用发送方法
@@ -187,22 +154,11 @@ public class RobotsClient {
         out.flush();
     }
 
-    /**
-     * Future 管理
-     */
-    public void addSendClipboardFuture(int id, CompletableFuture<SendClipboardResponse> future) {
-        sendClipboardFutureMap.put(id, future);
+    public void addCaptureFuture(Long id, CompletableFuture<RobotCaptureResponse> future) {
+        captureFutureMap.put(id, future);
     }
 
-    public void addSetClipboardFuture(int id, CompletableFuture<SetClipboardResponse> future) {
-        setClipboardFutureMap.put(id, future);
-    }
-
-    public CompletableFuture<SendClipboardResponse> getSendClipboardFuture(int id) {
-        return sendClipboardFutureMap.remove(id);
-    }
-
-    public CompletableFuture<SetClipboardResponse> getSetClipboardFuture(int id) {
-        return setClipboardFutureMap.remove(id);
+    public CompletableFuture<RobotCaptureResponse> removeCaptureFuture(Long id) {
+        return captureFutureMap.remove(id);
     }
 }
