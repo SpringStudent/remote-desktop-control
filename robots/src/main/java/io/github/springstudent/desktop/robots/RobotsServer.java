@@ -110,7 +110,11 @@ public class RobotsServer {
     }
 
     public static void main(String[] args) {
-        RobotsServer server = new RobotsServer(55678);
+        int robotPort = 55678;
+        if (System.getProperty("robotPort") != null) {
+            robotPort = Integer.parseInt(System.getProperty("robotPort"));
+        }
+        RobotsServer server = new RobotsServer(robotPort);
         server.start();
     }
 }

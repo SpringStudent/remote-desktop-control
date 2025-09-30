@@ -45,7 +45,7 @@ public class RemoteClient extends RemoteFrame {
 
     private RobotsClient robotsClient;
 
-    public RemoteClient(String serverIp, Integer serverPort, String clipboardServer,int robotsClientPort) {
+    public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotsClientPort) {
         remoteClient = this;
         this.serverIp = serverIp;
         this.serverPort = serverPort;
@@ -176,7 +176,11 @@ public class RemoteClient extends RemoteFrame {
 
 
     public static void main(String[] args) throws Exception {
-        RemoteClient remoteClient = new RemoteClient("192.168.0.110", 54321, "http://192.168.0.110:12345/remote-desktop-control",55678);
+        int robotPort = 55678;
+        if (System.getProperty("robotPort") != null) {
+            robotPort = Integer.parseInt(System.getProperty("robotPort"));
+        }
+        RemoteClient remoteClient = new RemoteClient("192.168.0.110", 54321, "http://192.168.0.110:12345/remote-desktop-control", robotPort);
     }
 
 }
