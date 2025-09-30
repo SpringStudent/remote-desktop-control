@@ -10,6 +10,8 @@ public class SendClipboardResponse extends Identify implements Serializable {
 
     private String content;
 
+    private Integer id;
+
     public SendClipboardResponse(Byte code, String clipboarType, String content, Integer id) {
         this.code = code;
         this.clipboarType = clipboarType;
@@ -27,5 +29,9 @@ public class SendClipboardResponse extends Identify implements Serializable {
 
     public String getContent() {
         return content;
+    }
+
+    public Integer getId() {
+        return id;
     }
 }

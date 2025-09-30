@@ -6,6 +6,7 @@ public class SetClipboardRequest extends Identify implements Serializable {
     private String clipboardType;
     private String content;
     private String clipboardServer;
+    private Integer id;
 
     public SetClipboardRequest(String clipboardType, String content, String clipboardServer) {
         this.clipboardType = clipboardType;
@@ -24,5 +25,9 @@ public class SetClipboardRequest extends Identify implements Serializable {
 
     public String getClipboardServer() {
         return clipboardServer;
+    }
+
+    public Integer getId() {
+        return id;
     }
 }

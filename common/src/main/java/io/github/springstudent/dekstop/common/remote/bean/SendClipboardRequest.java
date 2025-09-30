@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 public class SendClipboardRequest extends Identify implements Serializable {
 
+    protected Integer id;
     private final String deviceCode;
 
     private final String clipboardServer;
@@ -22,5 +23,7 @@ public class SendClipboardRequest extends Identify implements Serializable {
         return clipboardServer;
     }
 
-
+    public Integer getId() {
+        return id;
+    }
 }
