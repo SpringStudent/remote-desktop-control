@@ -115,7 +115,7 @@ public final class ScreenUtilities {
         if (WinDesktop.isWindowsAndLockScreen()) {
             try {
                 CompletableFuture<RobotCaptureResponse> captureFuture = RemoteClient.getRemoteClient().getControlled().sendRobotCapture();
-                RobotCaptureResponse response = captureFuture.get(1, TimeUnit.SECONDS);
+                RobotCaptureResponse response = captureFuture.get(1500, TimeUnit.MILLISECONDS);
                 if (response != null && response.getScreenBytes() != null) {
                     try (ByteArrayInputStream bais = new ByteArrayInputStream(captureFuture.get().getScreenBytes())) {
                         BufferedImage image = ImageIO.read(bais);
