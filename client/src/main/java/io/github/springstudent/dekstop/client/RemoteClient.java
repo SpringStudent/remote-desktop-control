@@ -1,9 +1,6 @@
 package io.github.springstudent.dekstop.client;
 
-import io.github.springstudent.dekstop.client.core.RemoteControlled;
-import io.github.springstudent.dekstop.client.core.RemoteController;
-import io.github.springstudent.dekstop.client.core.RemoteFrame;
-import io.github.springstudent.dekstop.client.core.RemoteScreen;
+import io.github.springstudent.dekstop.client.core.*;
 import io.github.springstudent.dekstop.client.netty.RemoteChannelHandler;
 import io.github.springstudent.dekstop.client.netty.RemoteStateIdleHandler;
 import io.github.springstudent.dekstop.common.command.*;
@@ -46,13 +43,16 @@ public class RemoteClient extends RemoteFrame {
 
     private RemoteController controller;
 
+    private RemoteRobotsClient robotsClient;
+
     public RemoteClient(String serverIp, Integer serverPort, String clipboardServer) {
         remoteClient = this;
         this.serverIp = serverIp;
         this.serverPort = serverPort;
         this.clipboardServer = clipboardServer;
-        this.controlled = new RemoteControlled();
-        this.controller = new RemoteController();
+        this.robotsClient = new RemoteRobotsClient(55555);
+        this.controlled = new RemoteControlled(robotsClient);
+        this.controller = new RemoteController(robotsClient);
         this.remoteScreen = new RemoteScreen();
         this.connectServer();
     }

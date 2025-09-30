@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class Listeners<T extends Listener> {
+public class Listeners<T> {
 
 	private final List<T> bucket = new CopyOnWriteArrayList<>();
 

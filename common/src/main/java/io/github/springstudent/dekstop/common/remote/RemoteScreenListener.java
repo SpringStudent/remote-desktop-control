@@ -1,6 +1,6 @@
-package io.github.springstudent.dekstop.client.core;
+package io.github.springstudent.dekstop.common.remote;
 
-import io.github.springstudent.dekstop.client.bean.Listener;
+import io.github.springstudent.dekstop.common.bean.Listener;
 
 /**
  * @author ZhouNing

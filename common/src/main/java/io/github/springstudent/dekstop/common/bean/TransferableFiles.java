@@ -1,4 +1,4 @@
-package io.github.springstudent.dekstop.client.bean;
+package io.github.springstudent.dekstop.common.bean;
 
 
 import io.github.springstudent.dekstop.common.log.Log;

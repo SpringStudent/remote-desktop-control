@@ -2,9 +2,8 @@ package io.github.springstudent.dekstop.client.capture;
 
 
 import io.github.springstudent.dekstop.client.bean.Capture;
-import io.github.springstudent.dekstop.client.bean.Listener;
 
-public interface CaptureEngineListener extends Listener {
+public interface CaptureEngineListener {
 	/**
 	 * Must not block.
 	 */

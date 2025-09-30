@@ -67,6 +67,10 @@ public class CmdMouseControl extends Cmd {
         return y;
     }
 
+    public int getInfo() {
+        return info;
+    }
+
     public int getRotations() {
         return rotations;
     }

@@ -13,6 +13,11 @@ import io.github.springstudent.dekstop.common.command.*;
 import io.github.springstudent.dekstop.common.configuration.CaptureEngineConfiguration;
 import io.github.springstudent.dekstop.common.configuration.CompressorEngineConfiguration;
 import io.github.springstudent.dekstop.common.log.Log;
+import io.github.springstudent.dekstop.common.remote.RemoteScreenListener;
+import io.github.springstudent.dekstop.common.remote.bean.SendClipboardRequest;
+import io.github.springstudent.dekstop.common.remote.bean.SendClipboardResponse;
+import io.github.springstudent.dekstop.common.remote.bean.SetClipboardRequest;
+import io.github.springstudent.dekstop.common.remote.bean.SetClipboardResponse;
 
 import javax.swing.*;
 import java.awt.*;
@@ -24,6 +29,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ImagingOpException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import static io.github.springstudent.dekstop.client.utils.ImageUtilities.getOrCreateIcon;
@@ -74,7 +80,8 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     private ArrayList<Counter<?>> counters;
 
-    public RemoteController() {
+    public RemoteController(RemoteRobotsClient robotsClient) {
+        super(robotsClient);
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();
         deCompressorEngine = new DeCompressorEngine(this);
@@ -160,8 +167,11 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
             deCompressorEngine.handleCapture((CmdCapture) cmd);
             countReceivedBit(cmd);
         } else if (cmd.getType().equals(CmdType.ClipboardText) || cmd.getType().equals(CmdType.ClipboardTransfer)) {
-            if (needSetClipboard(cmd)) {
-                super.setClipboard(cmd).whenComplete((o, o2) -> RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(true));
+            SetClipboardRequest setClipboardRequest = null;
+            if ((setClipboardRequest = beforeSetClipboard(cmd)) != null) {
+                super.setClipboard(setClipboardRequest).whenComplete((setClipboardResponse, throwable) -> {
+                    RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(true);
+                });
             }
         } else if (cmd.getType().equals(CmdType.ResRemoteClipboard)) {
             RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(true);
@@ -509,9 +519,14 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
             @Override
             public void actionPerformed(ActionEvent ev) {
                 RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(false);
-                RemoteController.this.sendClipboard().whenComplete((aByte, throwable) -> {
-                    if (throwable != null || aByte != CmdResRemoteClipboard.OK) {
-                        RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(true);
+                RemoteController.this.sendClipboard(new SendClipboardRequest(getDeviceCode(), RemoteClient.getRemoteClient().getClipboardServer())).whenComplete(new BiConsumer<SendClipboardResponse, Throwable>() {
+                    @Override
+                    public void accept(SendClipboardResponse response, Throwable throwable) {
+                        if (throwable != null || response.getCode() != CmdResRemoteClipboard.OK) {
+                            RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(true);
+                        } else {
+                            RemoteController.super.afterSendClipboard(response);
+                        }
                     }
                 });
             }

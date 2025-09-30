@@ -2,9 +2,8 @@ package io.github.springstudent.dekstop.client.compress;
 
 
 import io.github.springstudent.dekstop.client.bean.Capture;
-import io.github.springstudent.dekstop.client.bean.Listener;
 
-public interface DeCompressorEngineListener extends Listener {
+public interface DeCompressorEngineListener {
 	/**
 	 * Called from within a de-compressor engine thread (!)
 	 */
