@@ -45,12 +45,12 @@ public class RemoteClient extends RemoteFrame {
 
     private RobotsClient robotsClient;
 
-    public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotsClientPort) {
+    public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort) {
         remoteClient = this;
         this.serverIp = serverIp;
         this.serverPort = serverPort;
         this.clipboardServer = clipboardServer;
-        this.robotsClient = new RobotsClient(robotsClientPort);
+        this.robotsClient = new RobotsClient(robotPort);
         this.controlled = new RemoteControlled(robotsClient);
         this.controller = new RemoteController(robotsClient);
         this.remoteScreen = new RemoteScreen();
