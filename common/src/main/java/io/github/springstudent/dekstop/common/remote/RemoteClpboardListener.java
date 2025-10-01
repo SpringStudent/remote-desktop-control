@@ -6,7 +6,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * @author ZhouNing
- * @date 2025/12/17 9:06
+ * @date 2025/9/30 9:06
  **/
 public interface RemoteClpboardListener {
     CompletableFuture<Byte> sendClipboard();

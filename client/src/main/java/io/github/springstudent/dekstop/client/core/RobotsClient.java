@@ -3,6 +3,10 @@ package io.github.springstudent.dekstop.client.core;
 import io.github.springstudent.dekstop.client.RemoteClient;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.remote.bean.RobotCaptureResponse;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timeout;
+import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -40,6 +44,8 @@ public class RobotsClient {
     private final int reconnectDelayMillis = 1500;
 
     private ConcurrentHashMap<Long, CompletableFuture<RobotCaptureResponse>> captureFutureMap = new ConcurrentHashMap<>();
+
+    private final Timer timer = new HashedWheelTimer(100, TimeUnit.MILLISECONDS, 512);
 
     public RobotsClient(int port) {
         this.port = port;
@@ -140,6 +146,7 @@ public class RobotsClient {
             return;
         }
         disconnectAndCleanup();
+        timer.stop();
         listenExecutor.shutdownNow();
         retryExecutor.shutdownNow();
         Log.info("RobotsClient stopped.");
@@ -158,6 +165,12 @@ public class RobotsClient {
 
     public void addCaptureFuture(Long id, CompletableFuture<RobotCaptureResponse> future) {
         captureFutureMap.put(id, future);
+        timer.newTimeout(t -> {
+            CompletableFuture<RobotCaptureResponse> f = captureFutureMap.remove(id);
+            if (f != null && !f.isDone()) {
+                f.completeExceptionally(new TimeoutException("Request " + id + " timeout after " + 1500 + "ms"));
+            }
+        }, 1500, TimeUnit.MILLISECONDS);
     }
 
     public CompletableFuture<RobotCaptureResponse> removeCaptureFuture(Long id) {

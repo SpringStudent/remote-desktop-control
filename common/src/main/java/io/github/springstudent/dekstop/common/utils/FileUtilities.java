@@ -9,6 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
+/**
+ * @author ZhouNing
+ * @date 2024/11/30 9:06
+ **/
 public final class FileUtilities {
 
     public static List<File> getFiles(String dirPath) {
