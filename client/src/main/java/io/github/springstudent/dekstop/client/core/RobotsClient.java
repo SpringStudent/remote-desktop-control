@@ -1,5 +1,6 @@
 package io.github.springstudent.dekstop.client.core;
 
+import io.github.springstudent.dekstop.client.RemoteClient;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.remote.bean.RobotCaptureResponse;
 
@@ -42,7 +43,9 @@ public class RobotsClient {
 
     public RobotsClient(int port) {
         this.port = port;
-        connectWithRetry();
+        if (RemoteClient.getRemoteClient().getOsId() == 'w') {
+            connectWithRetry();
+        }
     }
 
     /**
@@ -141,7 +144,6 @@ public class RobotsClient {
         retryExecutor.shutdownNow();
         Log.info("RobotsClient stopped.");
     }
-
 
     /**
      * 通用发送方法

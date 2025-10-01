@@ -154,12 +154,12 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
             int info = 0;
             if (message.isPressed()) {
                 if (message.isButton1()) info |= 0x1;
-                if (message.isButton2()) info |= 0x4;
-                if (message.isButton3()) info |= 0x10;
+                if (message.isButton2()) info |= 0x10;
+                if (message.isButton3()) info |= 0x4;
             } else if (message.isReleased()) {
                 if (message.isButton1()) info |= 0x2;
-                if (message.isButton2()) info |= 0x8;
-                if (message.isButton3()) info |= 0x20;
+                if (message.isButton2()) info |= 0x20;  // 中键释放
+                if (message.isButton3()) info |= 0x8;   // 右键释放
             }
             final int fInfo = info;
             CompletableFuture.runAsync(() -> this.sendMouseControl(new RobotMouseControl(message.getX(), message.getY(), fInfo, message.getRotations())));
@@ -190,6 +190,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
                 y = y + ScreenUtilities.getSharedScreenSize().y;
             }
             robot.mouseMove(x, y);
+
         }
     }
 

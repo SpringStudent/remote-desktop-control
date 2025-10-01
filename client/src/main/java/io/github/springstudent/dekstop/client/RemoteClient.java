@@ -176,7 +176,7 @@ public class RemoteClient extends RemoteFrame {
 
 
     public static void main(String[] args) throws Exception {
-        int robotPort = 55678;
+        int robotPort = 49152;
         if (System.getProperty("robotPort") != null) {
             robotPort = Integer.parseInt(System.getProperty("robotPort"));
         }
