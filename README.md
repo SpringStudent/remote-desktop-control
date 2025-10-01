@@ -91,3 +91,5 @@ streaming media: https://github.com/SpringStudent/a-da
 * The stability of this project has been verified in production environments and is ready for reliable use.
 * In the Windows lock screen scenario, it is not possible to capture screenshots or simulate keyboard and mouse events. Refer to the following project for a solution
   https://github.com/SpringStudent/windows-lock-helper
+* The robots project is a service introduced to address the issue of being unable to capture screens in Windows lock screen scenarios. 
+  This service is not required for non-Windows systems and does not need to be started. For instructions on using this service, please refer to the windows-lock-helper project.
