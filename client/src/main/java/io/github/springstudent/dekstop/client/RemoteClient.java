@@ -18,6 +18,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import javax.swing.*;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
@@ -98,18 +101,15 @@ public class RemoteClient extends RemoteFrame {
     public void connectServer() {
         final Bootstrap bootstrap = new Bootstrap();
         NioEventLoopGroup group = new NioEventLoopGroup();
-        bootstrap.group(group)
-                .channel(NioSocketChannel.class)
-                .option(ChannelOption.TCP_NODELAY, true)
-                .handler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    protected void initChannel(SocketChannel socketChannel) throws Exception {
-                        socketChannel.pipeline().addLast(new NettyDecoder());
-                        socketChannel.pipeline().addLast(new NettyEncoder());
-                        socketChannel.pipeline().addLast(new RemoteStateIdleHandler());
-                        socketChannel.pipeline().addLast(new RemoteChannelHandler());
-                    }
-                });
+        bootstrap.group(group).channel(NioSocketChannel.class).option(ChannelOption.TCP_NODELAY, true).option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            protected void initChannel(SocketChannel socketChannel) throws Exception {
+                socketChannel.pipeline().addLast(new NettyDecoder());
+                socketChannel.pipeline().addLast(new NettyEncoder());
+                socketChannel.pipeline().addLast(new RemoteStateIdleHandler());
+                socketChannel.pipeline().addLast(new RemoteChannelHandler());
+            }
+        });
         //连接至远程客户端
         connect(bootstrap, 0);
     }
@@ -123,8 +123,7 @@ public class RemoteClient extends RemoteFrame {
                 this.connectStatus = false;
                 Integer order = retry + 1;
                 Log.info(format("reconnect to remote server serverIp=%s ,serverPort=%d,retry times =%d", serverIp, serverPort, order));
-                bootstrap.config().group().schedule(() -> connect(bootstrap, order), 5, TimeUnit
-                        .SECONDS);
+                bootstrap.config().group().schedule(() -> connect(bootstrap, order), 5, TimeUnit.SECONDS);
             }
         });
     }
@@ -180,7 +179,30 @@ public class RemoteClient extends RemoteFrame {
         if (System.getProperty("robotPort") != null) {
             robotPort = Integer.parseInt(System.getProperty("robotPort"));
         }
-        RemoteClient remoteClient = new RemoteClient("192.168.0.110", 54321, "http://192.168.0.110:12345/remote-desktop-control", robotPort);
+        String serverIp = "192.168.0.110";
+        Integer serverPort = 54321;
+        String clipboardServer = "http://192.168.0.110:12345/remote-desktop-control";
+        if (System.getProperty("configFile") != null) {
+            Properties properties = new Properties();
+            try (InputStream input = new FileInputStream(System.getProperty("configFile"))) {
+                properties.load(input);
+                if (properties.getProperty("serverIp") != null) {
+                    serverIp = properties.getProperty("serverIp");
+                }
+                if (properties.getProperty("serverPort") != null) {
+                    serverPort = Integer.parseInt(properties.getProperty("serverPort"));
+                }
+                if (properties.getProperty("clipboardServer") != null) {
+                    clipboardServer = properties.getProperty("clipboardServer");
+                }
+                if (properties.getProperty("robotPort") != null) {
+                    robotPort = Integer.parseInt(properties.getProperty("robotPort"));
+                }
+            } catch (Exception e) {
+                Log.warn("Load config file error!", e);
+            }
+        }
+        RemoteClient remoteClient = new RemoteClient(serverIp, serverPort, clipboardServer, robotPort);
     }
 
 }

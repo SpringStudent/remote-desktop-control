@@ -6,12 +6,10 @@ import io.github.springstudent.dekstop.common.remote.bean.RobotCaputureReq;
 import io.github.springstudent.dekstop.common.remote.bean.RobotKeyControl;
 import io.github.springstudent.dekstop.common.remote.bean.RobotMouseControl;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Properties;
 
 public class RobotsServer {
     private volatile boolean running;
@@ -113,6 +111,17 @@ public class RobotsServer {
         int robotPort = 55678;
         if (System.getProperty("robotPort") != null) {
             robotPort = Integer.parseInt(System.getProperty("robotPort"));
+        }
+        if (System.getProperty("configFile") != null) {
+            Properties properties = new Properties();
+            try (InputStream input = new FileInputStream(System.getProperty("configFile"))) {
+                properties.load(input);
+                if (properties.getProperty("robotPort") != null) {
+                    robotPort = Integer.parseInt(properties.getProperty("robotPort"));
+                }
+            } catch (Exception e) {
+                Log.warn("Load config file error!", e);
+            }
         }
         RobotsServer server = new RobotsServer(robotPort);
         server.start();
