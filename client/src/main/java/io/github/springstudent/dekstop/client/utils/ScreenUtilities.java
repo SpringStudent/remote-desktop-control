@@ -114,7 +114,7 @@ public final class ScreenUtilities {
     private static int[] captureRGB(Rectangle bounds) {
         if (WinDesktop.isWindowsAndLockScreen()) {
             try {
-                CompletableFuture<RobotCaptureResponse> captureFuture = RemoteClient.getRemoteClient().getControlled().sendRobotCapture();
+                CompletableFuture<RobotCaptureResponse> captureFuture = RemoteClient.getRemoteClient().sendRobotCapture();
                 RobotCaptureResponse response = captureFuture.get(1500, TimeUnit.MILLISECONDS);
                 if (response != null && response.getScreenBytes() != null) {
                     try (ByteArrayInputStream bais = new ByteArrayInputStream(captureFuture.get().getScreenBytes())) {

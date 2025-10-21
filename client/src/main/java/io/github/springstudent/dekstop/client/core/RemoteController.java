@@ -75,8 +75,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     private ArrayList<Counter<?>> counters;
 
-    public RemoteController(RobotsClient robotsClient) {
-        super(robotsClient);
+    public RemoteController() {
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();
         deCompressorEngine = new DeCompressorEngine(this);

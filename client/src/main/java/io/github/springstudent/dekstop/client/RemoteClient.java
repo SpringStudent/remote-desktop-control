@@ -7,6 +7,10 @@ import io.github.springstudent.dekstop.common.command.*;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.protocol.NettyDecoder;
 import io.github.springstudent.dekstop.common.protocol.NettyEncoder;
+import io.github.springstudent.dekstop.common.remote.bean.RobotCaptureResponse;
+import io.github.springstudent.dekstop.common.remote.bean.RobotCaputureReq;
+import io.github.springstudent.dekstop.common.remote.bean.RobotKeyControl;
+import io.github.springstudent.dekstop.common.remote.bean.RobotMouseControl;
 import io.github.springstudent.dekstop.common.utils.NettyUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -19,8 +23,10 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 import javax.swing.*;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
@@ -54,8 +60,8 @@ public class RemoteClient extends RemoteFrame {
         this.serverPort = serverPort;
         this.clipboardServer = clipboardServer;
         this.robotsClient = new RobotsClient(robotPort);
-        this.controlled = new RemoteControlled(robotsClient);
-        this.controller = new RemoteController(robotsClient);
+        this.controlled = new RemoteControlled();
+        this.controller = new RemoteController();
         this.remoteScreen = new RemoteScreen();
         this.connectServer();
     }
@@ -173,6 +179,35 @@ public class RemoteClient extends RemoteFrame {
         return remoteClient;
     }
 
+
+    public void sendMouseControl(RobotMouseControl message) {
+        try {
+            robotsClient.send(message);
+        } catch (Exception e) {
+            Log.error("Failed to send mouse control message: " + e.getMessage());
+        }
+    }
+
+    public void sendKeyControl(RobotKeyControl message) {
+        try {
+            robotsClient.send(message);
+        } catch (Exception e) {
+            Log.error("Failed to send key control message: " + e.getMessage());
+        }
+    }
+
+    public CompletableFuture<RobotCaptureResponse> sendRobotCapture() {
+        try {
+            CompletableFuture<RobotCaptureResponse> future = new CompletableFuture<>();
+            RobotCaputureReq req = new RobotCaputureReq();
+            robotsClient.addCaptureFuture(req.getId(), future);
+            robotsClient.send(req);
+            return future;
+        } catch (IOException e) {
+            Log.error("Failed to send capture request: " + e.getMessage());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
 
     public static void main(String[] args) throws Exception {
         int robotPort = 49152;

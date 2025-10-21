@@ -9,10 +9,6 @@ import io.github.springstudent.dekstop.common.bean.TransferableFiles;
 import io.github.springstudent.dekstop.common.command.*;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.remote.RemoteClpboardListener;
-import io.github.springstudent.dekstop.common.remote.bean.RobotCaptureResponse;
-import io.github.springstudent.dekstop.common.remote.bean.RobotCaputureReq;
-import io.github.springstudent.dekstop.common.remote.bean.RobotKeyControl;
-import io.github.springstudent.dekstop.common.remote.bean.RobotMouseControl;
 import io.github.springstudent.dekstop.common.utils.EmptyUtils;
 import io.github.springstudent.dekstop.common.utils.FileUtilities;
 import io.github.springstudent.dekstop.common.utils.NettyUtils;
@@ -25,7 +21,6 @@ import java.awt.*;
 import java.awt.datatransfer.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -46,7 +41,6 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
 
     private static String downloadDir;
     protected Channel channel;
-    private RobotsClient robotsClient;
 
     static {
         rootDir = getProperty("java.io.tmpdir") + File.separator + "remoteDeskopControll";
@@ -65,8 +59,8 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
         }
     }
 
-    public RemoteControll(RobotsClient robotsClient) {
-        this.robotsClient = robotsClient;
+    public RemoteControll() {
+
     }
 
     public Channel getChannel() {
@@ -286,36 +280,6 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
                 }
             }
         }
-    }
-
-    protected void sendMouseControl(RobotMouseControl message) {
-        try {
-            robotsClient.send(message);
-        } catch (Exception e) {
-            Log.error("Failed to send mouse control message: " + e.getMessage());
-        }
-    }
-
-    protected void sendKeyControl(RobotKeyControl message) {
-        try {
-            robotsClient.send(message);
-        } catch (Exception e) {
-            Log.error("Failed to send key control message: " + e.getMessage());
-        }
-    }
-
-    public CompletableFuture<RobotCaptureResponse> sendRobotCapture() {
-        try {
-            CompletableFuture<RobotCaptureResponse> future = new CompletableFuture<>();
-            RobotCaputureReq req = new RobotCaputureReq();
-            robotsClient.addCaptureFuture(req.getId(), future);
-            robotsClient.send(req);
-            return future;
-        } catch (IOException e) {
-            Log.error("Failed to send capture request: " + e.getMessage());
-            return CompletableFuture.completedFuture(null);
-        }
-
     }
 
     public abstract void handleCmd(Cmd cmd);

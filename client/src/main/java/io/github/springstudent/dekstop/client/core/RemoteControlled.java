@@ -49,8 +49,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
 
     private Robot robot;
 
-    public RemoteControlled(RobotsClient robotsClient) {
-        super(robotsClient);
+    public RemoteControlled() {
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();
         captureEngine = new CaptureEngine(new RobotCaptureFactory(-1));
@@ -162,7 +161,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
                 if (message.isButton3()) info |= 0x8;   // 右键释放
             }
             final int fInfo = info;
-            CompletableFuture.runAsync(() -> this.sendMouseControl(new RobotMouseControl(message.getX(), message.getY(), fInfo, message.getRotations())));
+            CompletableFuture.runAsync(() -> RemoteClient.getRemoteClient().sendMouseControl(new RobotMouseControl(message.getX(), message.getY(), fInfo, message.getRotations())));
         } else {
             if (message.isPressed()) {
                 if (message.isButton1()) {
@@ -250,7 +249,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
 
     private void nativePressKey(int keyCode) {
         if (WinDesktop.isWindowsAndLockScreen()) {
-            CompletableFuture.runAsync(() -> this.sendKeyControl(new RobotKeyControl(keyCode, 1)));
+            CompletableFuture.runAsync(() -> RemoteClient.getRemoteClient().sendKeyControl(new RobotKeyControl(keyCode, 1)));
         } else {
             robot.keyPress(keyCode);
         }
@@ -258,7 +257,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
 
     private void nativeReleaseKey(int keyCode) {
         if (WinDesktop.isWindowsAndLockScreen()) {
-            CompletableFuture.runAsync(() -> this.sendKeyControl(new RobotKeyControl(keyCode, 0)));
+            CompletableFuture.runAsync(() -> RemoteClient.getRemoteClient().sendKeyControl(new RobotKeyControl(keyCode, 0)));
         } else {
             robot.keyRelease(keyCode);
         }
