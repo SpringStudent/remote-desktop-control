@@ -1,14 +1,10 @@
 package io.github.springstudent.dekstop.client.utils;
 
-import com.sun.jna.Pointer;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.ptr.PointerByReference;
 import io.github.springstudent.dekstop.client.RemoteClient;
 import io.github.springstudent.dekstop.client.jni.WinDesktop;
 import io.github.springstudent.dekstop.common.bean.Gray8Bits;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.remote.bean.RobotCaptureResponse;
-import io.github.springstudent.dekstop.common.remote.bean.RobotCaputureReq;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
