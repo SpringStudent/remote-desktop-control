@@ -26,7 +26,7 @@ public class NettyChannelBrother {
         this.controlled = controlled;
     }
 
-    public void startControll() {
+    public void startControl() {
         NettyUtils.updateControllFlag(controller, Constants.CONTROLLER);
         NettyUtils.updateControllDeviceCode(controller, NettyUtils.getDeviceCode(controlled));
         NettyUtils.updateControllFlag(controlled, Constants.CONTROLLED);
@@ -36,7 +36,7 @@ public class NettyChannelBrother {
     }
 
 
-    public void stopControll(byte stopType) {
+    public void stopControl(byte stopType) {
         NettyUtils.updateControllFlag(controller, null);
         NettyUtils.updateControllDeviceCode(controller, null);
         NettyUtils.updateControllFlag(controlled, null);
