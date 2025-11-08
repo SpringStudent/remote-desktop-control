@@ -24,6 +24,7 @@ public class RemoteStateIdleHandler extends IdleStateHandler {
         ctx.writeAndFlush(new CmdReqPing()).addListeners((ChannelFutureListener) future -> {
             if (!future.isSuccess()) {
                 Log.error("client send ping error,close channel");
+                ctx.close();
             }
         });
         super.userEventTriggered(ctx, evt);
