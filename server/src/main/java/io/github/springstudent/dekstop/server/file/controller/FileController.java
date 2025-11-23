@@ -3,6 +3,7 @@ package io.github.springstudent.dekstop.server.file.controller;
 import io.github.springstudent.dekstop.server.file.service.FileService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +19,7 @@ import java.util.List;
  **/
 @RestController
 @RequestMapping("/file")
+@ConditionalOnProperty(prefix = "server.file", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class FileController {
     private static final Logger log = LoggerFactory.getLogger(FileController.class);
 

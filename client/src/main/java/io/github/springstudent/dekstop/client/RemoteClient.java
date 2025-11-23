@@ -160,7 +160,8 @@ public class RemoteClient extends RemoteFrame {
     }
 
     public void stopClient() {
-        showMessageDialog("连接异常", JOptionPane.ERROR_MESSAGE);
+        Log.info("Remote client disconnected from server...");
+//        showMessageDialog("连接异常", JOptionPane.ERROR_MESSAGE);
         remoteScreen.close();
         controller.stop();
         controlled.stop();
