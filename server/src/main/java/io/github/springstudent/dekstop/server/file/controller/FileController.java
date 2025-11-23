@@ -19,7 +19,7 @@ import java.util.List;
  **/
 @RestController
 @RequestMapping("/file")
-@ConditionalOnProperty(prefix = "server.file", name = "enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(prefix = "dekstop.server.file", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class FileController {
     private static final Logger log = LoggerFactory.getLogger(FileController.class);
 
