@@ -405,8 +405,10 @@ public class RemoteScreen extends JFrame {
             statusBar.setSessionDuration(format("%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60));
         });
         sessionTimer.start();
-        sendClipboardButton.setEnabled(true);
-        reqClipboardButton.setEnabled(true);
+        if (EmptyUtils.isNotEmpty(RemoteClient.getRemoteClient().getClipboardServer())) {
+            sendClipboardButton.setEnabled(true);
+            reqClipboardButton.setEnabled(true);
+        }
         SwingUtilities.invokeLater(() -> this.setVisible(true));
     }
 
