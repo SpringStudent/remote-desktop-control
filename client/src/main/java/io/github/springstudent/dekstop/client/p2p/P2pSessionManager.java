@@ -10,6 +10,9 @@ import java.io.*;
 import java.lang.reflect.Method;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -248,6 +251,7 @@ public class P2pSessionManager {
         private final Object component;
         private final Consumer<Cmd> inboundConsumer;
         private volatile DatagramSocket selectedSocket;
+        private volatile InetSocketAddress selectedRemoteAddress;
 
         private Ice4jTransport(Object agent, Object stream, Object component, Consumer<Cmd> inboundConsumer) {
             this.agent = agent;
@@ -344,15 +348,69 @@ public class P2pSessionManager {
                 return false;
             }
             try {
-                // ice4j candidate parsing APIs differ by versions; best-effort use parser when available.
-                Class<?> parser = Class.forName("org.ice4j.ice.sdp.CandidateAttribute");
-                Object parsed = invokeStatic(parser, "parse", new Class[]{String.class}, candidateLine);
-                if (parsed != null) {
-                    invoke(component, "addRemoteCandidate", new Class[]{Class.forName("org.ice4j.ice.RemoteCandidate")}, parsed);
+                Object remoteCandidate = parseRemoteCandidate(candidateLine);
+                if (remoteCandidate == null) {
+                    return false;
+                }
+                if (invokeAddRemoteCandidate(remoteCandidate)) {
                     return true;
                 }
             } catch (Exception ignored) {
                 // fall through for compatibility
+            }
+            return false;
+        }
+
+        private Object parseRemoteCandidate(String candidateLine) {
+            try {
+                Class<?> parser = Class.forName("org.ice4j.ice.sdp.CandidateAttribute");
+                Object parsed = invokeStatic(parser, "parse", new Class[]{String.class}, candidateLine);
+                if (parsed == null) {
+                    return null;
+                }
+                try {
+                    Class<?> remoteCandidateClass = Class.forName("org.ice4j.ice.RemoteCandidate");
+                    if (remoteCandidateClass.isInstance(parsed)) {
+                        return parsed;
+                    }
+                } catch (Exception ignored) {
+                    // ignore and continue
+                }
+                Object candidateObj = invokeIfExistsReturning(parsed, "getCandidate", new Class[]{});
+                if (candidateObj != null) {
+                    return candidateObj;
+                }
+                return parsed;
+            } catch (Exception e) {
+                Log.warn("parse remote candidate failed");
+                return null;
+            }
+        }
+
+        private boolean invokeAddRemoteCandidate(Object remoteCandidate) {
+            try {
+                Class<?> remoteCandidateClass = Class.forName("org.ice4j.ice.RemoteCandidate");
+                if (remoteCandidateClass.isInstance(remoteCandidate)
+                        && invokeIfExists(component, "addRemoteCandidate", new Class[]{remoteCandidateClass}, remoteCandidate)) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+                // try generic reflection fallback below
+            }
+            for (Method m : component.getClass().getMethods()) {
+                if (!"addRemoteCandidate".equals(m.getName()) || m.getParameterTypes().length != 1) {
+                    continue;
+                }
+                Class<?> param = m.getParameterTypes()[0];
+                if (remoteCandidate != null && param.isAssignableFrom(remoteCandidate.getClass())) {
+                    try {
+                        m.setAccessible(true);
+                        m.invoke(component, remoteCandidate);
+                        return true;
+                    } catch (Exception ignored) {
+                        // keep trying other overloads
+                    }
+                }
             }
             return false;
         }
@@ -378,11 +436,17 @@ public class P2pSessionManager {
                 return false;
             }
             try {
-                java.net.SocketAddress remote = selectedSocket.getRemoteSocketAddress();
-                if (!(remote instanceof java.net.InetSocketAddress)) {
+                SocketAddress remote = selectedSocket.getRemoteSocketAddress();
+                InetSocketAddress target = null;
+                if (remote instanceof InetSocketAddress) {
+                    target = (InetSocketAddress) remote;
+                } else if (selectedRemoteAddress != null) {
+                    target = selectedRemoteAddress;
+                }
+                if (target == null) {
                     return false;
                 }
-                selectedSocket.send(new DatagramPacket(payload, payload.length, (java.net.InetSocketAddress) remote));
+                selectedSocket.send(new DatagramPacket(payload, payload.length, target));
                 return true;
             } catch (Exception e) {
                 Log.warn("ice send failed", e);
@@ -448,18 +512,67 @@ public class P2pSessionManager {
                 return;
             }
             try {
-                Object pair = invoke(component, "getSelectedPair", new Class[]{});
+                Object pair = invokeIfExistsReturning(component, "getSelectedPair", new Class[]{});
                 if (pair == null) {
-                    return;
+                    pair = invokeIfExistsReturning(stream, "getSelectedPair", new Class[]{});
                 }
-                Object wrapper = invoke(pair, "getIceSocketWrapper", new Class[]{});
-                Object socket = invoke(wrapper, "getUDPSocket", new Class[]{});
-                if (socket instanceof DatagramSocket) {
-                    selectedSocket = (DatagramSocket) socket;
+                if (pair != null) {
+                    if (extractSocketFromPair(pair)) {
+                        return;
+                    }
+                }
+
+                Object wrapper = invokeIfExistsReturning(component, "getComponentSocket", new Class[]{});
+                if (wrapper != null) {
+                    Object socket = invokeIfExistsReturning(wrapper, "getUDPSocket", new Class[]{});
+                    if (socket instanceof DatagramSocket) {
+                        selectedSocket = (DatagramSocket) socket;
+                        return;
+                    }
                 }
             } catch (Exception e) {
                 Log.debug("selected socket not ready yet");
             }
+        }
+
+        private boolean extractSocketFromPair(Object pair) {
+            Object wrapper = invokeIfExistsReturning(pair, "getIceSocketWrapper", new Class[]{});
+            if (wrapper == null) {
+                return false;
+            }
+            Object socket = invokeIfExistsReturning(wrapper, "getUDPSocket", new Class[]{});
+            if (!(socket instanceof DatagramSocket)) {
+                return false;
+            }
+            selectedSocket = (DatagramSocket) socket;
+            Object remoteCandidate = invokeIfExistsReturning(pair, "getRemoteCandidate", new Class[]{});
+            if (remoteCandidate != null) {
+                Object ta = invokeIfExistsReturning(remoteCandidate, "getTransportAddress", new Class[]{});
+                InetSocketAddress addr = toInetSocketAddress(ta);
+                if (addr != null) {
+                    selectedRemoteAddress = addr;
+                }
+            }
+            return true;
+        }
+
+        private InetSocketAddress toInetSocketAddress(Object transportAddress) {
+            if (transportAddress == null) {
+                return null;
+            }
+            if (transportAddress instanceof InetSocketAddress) {
+                return (InetSocketAddress) transportAddress;
+            }
+            try {
+                Object host = invokeIfExistsReturning(transportAddress, "getHostAddress", new Class[]{});
+                Object port = invokeIfExistsReturning(transportAddress, "getPort", new Class[]{});
+                if (host != null && port instanceof Integer) {
+                    return new InetSocketAddress(String.valueOf(host), (Integer) port);
+                }
+            } catch (Exception ignored) {
+                // best effort
+            }
+            return null;
         }
 
         private Object invokeNoArgAny(String methodName) throws Exception {
@@ -498,6 +611,16 @@ public class P2pSessionManager {
                 return true;
             } catch (NoSuchMethodException e) {
                 return false;
+            }
+        }
+
+        private static Object invokeIfExistsReturning(Object target, String name, Class<?>[] paramTypes, Object... args) {
+            try {
+                Method m = target.getClass().getMethod(name, paramTypes);
+                m.setAccessible(true);
+                return m.invoke(target, args);
+            } catch (Exception e) {
+                return null;
             }
         }
 
