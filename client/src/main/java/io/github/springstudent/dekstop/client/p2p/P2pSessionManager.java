@@ -246,8 +246,8 @@ public class P2pSessionManager {
 
         String localDescription() {
             try {
-                String ufrag = String.valueOf(invoke(agent, "getLocalUfrag", new Class[]{}));
-                String pwd = String.valueOf(invoke(agent, "getLocalPassword", new Class[]{}));
+                String ufrag = String.valueOf(invokeNoArgAny("getLocalUfrag"));
+                String pwd = String.valueOf(invokeNoArgAny("getLocalPassword"));
                 StringBuilder sb = new StringBuilder();
                 sb.append("ufrag=").append(ufrag).append("\n");
                 sb.append("pwd=").append(pwd).append("\n");
@@ -293,8 +293,9 @@ public class P2pSessionManager {
                 if (remoteUfrag == null || remotePwd == null) {
                     return false;
                 }
-                invoke(agent, "setRemoteUfrag", new Class[]{Class.forName("org.ice4j.ice.IceMediaStream"), String.class}, stream, remoteUfrag);
-                invoke(agent, "setRemotePassword", new Class[]{Class.forName("org.ice4j.ice.IceMediaStream"), String.class}, stream, remotePwd);
+                if (!setRemoteCredential("setRemoteUfrag", remoteUfrag) || !setRemoteCredential("setRemotePassword", remotePwd)) {
+                    return false;
+                }
                 for (String c : candidateLines) {
                     addRemoteCandidate(c);
                 }
@@ -358,20 +359,16 @@ public class P2pSessionManager {
 
         private void attachStateListener() {
             try {
-                Class<?> pcl = Class.forName("java.beans.PropertyChangeListener");
-                Object listener = java.lang.reflect.Proxy.newProxyInstance(
-                        pcl.getClassLoader(), new Class[]{pcl},
-                        (proxy, method, args) -> {
-                            if ("propertyChange".equals(method.getName())) {
-                                ensureSelectedSocket();
-                                if (selectedSocket != null) {
-                                    startReceiverIfNeeded();
-                                }
-                            }
-                            return null;
+                java.beans.PropertyChangeListener listener = new java.beans.PropertyChangeListener() {
+                    @Override
+                    public void propertyChange(java.beans.PropertyChangeEvent evt) {
+                        ensureSelectedSocket();
+                        if (selectedSocket != null) {
+                            startReceiverIfNeeded();
                         }
-                );
-                invoke(agent, "addStateChangeListener", new Class[]{pcl}, listener);
+                    }
+                };
+                invoke(agent, "addStateChangeListener", new Class[]{java.beans.PropertyChangeListener.class}, listener);
             } catch (Exception e) {
                 Log.warn("attach state listener failed", e);
             }
@@ -443,5 +440,56 @@ public class P2pSessionManager {
             m.setAccessible(true);
             return m.invoke(null, args);
         }
+
+        private Object invokeNoArgAny(String methodName) throws Exception {
+            if (hasMethod(agent, methodName, new Class[]{})) {
+                return invoke(agent, methodName, new Class[]{});
+            }
+            if (hasMethod(stream, methodName, new Class[]{})) {
+                return invoke(stream, methodName, new Class[]{});
+            }
+            throw new NoSuchMethodException(methodName);
+        }
+
+        private boolean setRemoteCredential(String methodName, String value) {
+            try {
+                Class<?> iceStreamClass = Class.forName("org.ice4j.ice.IceMediaStream");
+                if (invokeIfExists(agent, methodName, new Class[]{iceStreamClass, String.class}, stream, value)) {
+                    return true;
+                }
+                if (invokeIfExists(agent, methodName, new Class[]{String.class}, value)) {
+                    return true;
+                }
+                if (invokeIfExists(stream, methodName, new Class[]{String.class}, value)) {
+                    return true;
+                }
+            } catch (Exception e) {
+                Log.warn("set remote credential failed: " + methodName, e);
+                return false;
+            }
+            Log.warn("set remote credential method missing: " + methodName);
+            return false;
+        }
+
+        private static boolean hasMethod(Object target, String name, Class<?>[] paramTypes) {
+            try {
+                target.getClass().getMethod(name, paramTypes);
+                return true;
+            } catch (NoSuchMethodException e) {
+                return false;
+            }
+        }
+
+        private static boolean invokeIfExists(Object target, String name, Class<?>[] paramTypes, Object... args) throws Exception {
+            try {
+                Method m = target.getClass().getMethod(name, paramTypes);
+                m.setAccessible(true);
+                m.invoke(target, args);
+                return true;
+            } catch (NoSuchMethodException e) {
+                return false;
+            }
+        }
+
     }
 }
