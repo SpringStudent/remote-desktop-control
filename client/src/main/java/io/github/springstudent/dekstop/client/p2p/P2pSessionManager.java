@@ -524,55 +524,6 @@ public class P2pSessionManager {
             return m.invoke(null, args);
         }
 
-        private Object invokeNoArgAny(String methodName) throws Exception {
-            if (hasMethod(agent, methodName, new Class[]{})) {
-                return invoke(agent, methodName, new Class[]{});
-            }
-            if (hasMethod(stream, methodName, new Class[]{})) {
-                return invoke(stream, methodName, new Class[]{});
-            }
-            throw new NoSuchMethodException(methodName);
-        }
-
-        private boolean setRemoteCredential(String methodName, String value) {
-            try {
-                Class<?> iceStreamClass = Class.forName("org.ice4j.ice.IceMediaStream");
-                if (invokeIfExists(agent, methodName, new Class[]{iceStreamClass, String.class}, stream, value)) {
-                    return true;
-                }
-                if (invokeIfExists(agent, methodName, new Class[]{String.class}, value)) {
-                    return true;
-                }
-                if (invokeIfExists(stream, methodName, new Class[]{String.class}, value)) {
-                    return true;
-                }
-            } catch (Exception e) {
-                Log.warn("set remote credential failed: " + methodName, e);
-                return false;
-            }
-            Log.warn("set remote credential method missing: " + methodName);
-            return false;
-        }
-
-        private static boolean hasMethod(Object target, String name, Class<?>[] paramTypes) {
-            try {
-                target.getClass().getMethod(name, paramTypes);
-                return true;
-            } catch (NoSuchMethodException e) {
-                return false;
-            }
-        }
-
-        private static boolean invokeIfExists(Object target, String name, Class<?>[] paramTypes, Object... args) throws Exception {
-            try {
-                Method m = target.getClass().getMethod(name, paramTypes);
-                m.setAccessible(true);
-                m.invoke(target, args);
-                return true;
-            } catch (NoSuchMethodException e) {
-                return false;
-            }
-        }
 
     }
 }
