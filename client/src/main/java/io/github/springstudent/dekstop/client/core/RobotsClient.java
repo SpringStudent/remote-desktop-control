@@ -48,7 +48,7 @@ public class RobotsClient {
     public RobotsClient(int port) {
         this.port = port;
         if (RemoteClient.getRemoteClient().getOsId() == 'w') {
-            connectWithRetry();
+//            connectWithRetry();
         }
     }
 
