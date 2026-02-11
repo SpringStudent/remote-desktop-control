@@ -88,6 +88,11 @@
                 <artifactId>jna</artifactId>
                 <version>5.12.1</version>
             </dependency>
+            <dependency>
+                <groupId>org.jitsi</groupId>
+                <artifactId>ice4j</artifactId>
+                <version>3.0-57-gf4e5cfd</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
