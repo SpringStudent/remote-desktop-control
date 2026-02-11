@@ -15,6 +15,16 @@ public class Constants {
      */
     public static final int CLIENT_SESSION_TIMEOUT_MILLS = 1000 * 15;
 
+    public static final long P2P_SIGNAL_EXPIRE_MILLS = 1000 * 60 * 5;
+
+    public static final long P2P_SIGNAL_SKEW_MILLS = 1000 * 60;
+
+    public static final String P2P_SESSION_ID = "p2pSessionId";
+
+    public static final String P2P_TOKEN = "p2pToken";
+
+    public static final String P2P_EXPIRE_AT = "p2pExpireAt";
+
     public static final String CONTROLLER = "CONTROLLER";
 
     public static final String CONTROLLED = "CONTROLLED";

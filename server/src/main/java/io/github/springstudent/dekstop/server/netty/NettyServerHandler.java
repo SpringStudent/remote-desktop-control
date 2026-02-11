@@ -4,8 +4,10 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import io.github.springstudent.dekstop.common.command.*;
+import io.github.springstudent.dekstop.common.bean.Constants;
 import io.github.springstudent.dekstop.common.utils.EmptyUtils;
 import io.github.springstudent.dekstop.common.utils.NettyUtils;
+import io.github.springstudent.dekstop.common.utils.P2pSecurityUtils;
 import io.netty.channel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +114,52 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
                     destChannel.writeAndFlush(cmd);
                 }
             }
+        } else if (cmd.getType().equals(CmdType.P2pOffer) || cmd.getType().equals(CmdType.P2pAnswer) || cmd.getType().equals(CmdType.P2pCandidate) || cmd.getType().equals(CmdType.P2pResult)) {
+            Channel targetChannel = NettyChannelManager.getControlledChannel(ctx.channel());
+            if (targetChannel == null) {
+                targetChannel = NettyChannelManager.getControllerChannel(ctx.channel());
+            }
+            if (targetChannel == null) {
+                return;
+            }
+            if (!(cmd instanceof CmdP2pSignal) || !verifyP2pSignal((CmdP2pSignal) cmd, ctx.channel())) {
+                ctx.channel().writeAndFlush(new CmdP2pResult(null, System.currentTimeMillis(), null, null, CmdP2pResult.FAILED + "|SIGNATURE_INVALID"));
+                return;
+            }
+            targetChannel.writeAndFlush(cmd);
         }
+    }
+
+    private boolean verifyP2pSignal(CmdP2pSignal signal, Channel sourceChannel) {
+        Map<String, Object> cliInfo = NettyUtils.getCliInfo(sourceChannel);
+        if (cliInfo == null) {
+            return false;
+        }
+        Object sessionObj = cliInfo.get(Constants.P2P_SESSION_ID);
+        Object tokenObj = cliInfo.get(Constants.P2P_TOKEN);
+        String sessionId = sessionObj == null ? null : sessionObj.toString();
+        String token = tokenObj == null ? null : tokenObj.toString();
+        Object expireAt = cliInfo.get(Constants.P2P_EXPIRE_AT);
+        if (StrUtil.isEmpty(sessionId) || StrUtil.isEmpty(token) || expireAt == null) {
+            return false;
+        }
+        long expiredAtMills = Long.parseLong(expireAt.toString());
+        long now = System.currentTimeMillis();
+        if (now > expiredAtMills) {
+            return false;
+        }
+        if (!sessionId.equals(signal.getSessionId()) || !token.equals(signal.getToken())) {
+            return false;
+        }
+        if (Math.abs(now - signal.getTimestamp()) > Constants.P2P_SIGNAL_SKEW_MILLS) {
+            return false;
+        }
+        String signContent = buildSignContent(signal.getSessionId(), signal.getTimestamp(), signal.getPayload());
+        return P2pSecurityUtils.verify(token, signContent, signal.getSignature());
+    }
+
+    public static String buildSignContent(String sessionId, long timestamp, String payload) {
+        return sessionId + "|" + timestamp + "|" + (payload == null ? "" : payload);
     }
 
     @Override
@@ -143,4 +190,3 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
     }
 
 }
-

@@ -3,6 +3,7 @@ package io.github.springstudent.dekstop.client;
 import io.github.springstudent.dekstop.client.core.*;
 import io.github.springstudent.dekstop.client.netty.RemoteChannelHandler;
 import io.github.springstudent.dekstop.client.netty.RemoteStateIdleHandler;
+import io.github.springstudent.dekstop.client.p2p.P2pSessionManager;
 import io.github.springstudent.dekstop.common.command.*;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.protocol.NettyDecoder;
@@ -54,12 +55,15 @@ public class RemoteClient extends RemoteFrame {
 
     private RobotsClient robotsClient;
 
+    private P2pSessionManager p2pSessionManager;
+
     public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort) {
         remoteClient = this;
         this.serverIp = serverIp;
         this.serverPort = serverPort;
         this.clipboardServer = clipboardServer;
         this.robotsClient = new RobotsClient(robotPort);
+        this.p2pSessionManager = new P2pSessionManager(this);
         this.controlled = new RemoteControlled();
         this.controller = new RemoteController();
         this.remoteScreen = new RemoteScreen();
@@ -148,6 +152,15 @@ public class RemoteClient extends RemoteFrame {
             setDeviceCodeAndPassword(clientInfo.getDeviceCode(), clientInfo.getPassword());
             NettyUtils.updateDeviceCode(ctx.channel(), clientInfo.getDeviceCode());
             updateConnectionStatus(true);
+        } else if (cmd.getType().equals(CmdType.P2pOffer) || cmd.getType().equals(CmdType.P2pAnswer) || cmd.getType().equals(CmdType.P2pCandidate)) {
+            p2pSessionManager.handleSignal(cmd);
+        } else if (cmd.getType().equals(CmdType.P2pResult)) {
+            CmdP2pResult result = (CmdP2pResult) cmd;
+            if (result.getPayload() != null && result.getPayload().startsWith(CmdP2pResult.TOKEN_ISSUED)) {
+                p2pSessionManager.onTokenIssued(result);
+            } else {
+                p2pSessionManager.handleSignal(cmd);
+            }
         } else {
             controller.handleCmd(cmd);
             controlled.handleCmd(cmd);
@@ -170,6 +183,15 @@ public class RemoteClient extends RemoteFrame {
         setControlledAndCloseSessionLabelVisible(false);
         setChannel(null);
         connectServer();
+    }
+
+    public void handleP2pCmd(Cmd cmd) {
+        controller.handleCmd(cmd);
+        controlled.handleCmd(cmd);
+    }
+
+    public P2pSessionManager getP2pSessionManager() {
+        return p2pSessionManager;
     }
 
     public String getClipboardServer() {

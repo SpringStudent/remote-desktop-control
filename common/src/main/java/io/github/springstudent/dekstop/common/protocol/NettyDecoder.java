@@ -85,6 +85,18 @@ public class NettyDecoder extends ByteToMessageDecoder {
             case ResOpen:
                 list.add(CmdResOpen.decode(byteBuf));
                 break;
+            case P2pOffer:
+                list.add(CmdP2pOffer.decode(byteBuf));
+                break;
+            case P2pAnswer:
+                list.add(CmdP2pAnswer.decode(byteBuf));
+                break;
+            case P2pCandidate:
+                list.add(CmdP2pCandidate.decode(byteBuf));
+                break;
+            case P2pResult:
+                list.add(CmdP2pResult.decode(byteBuf));
+                break;
             default:
                 throw new IllegalArgumentException(format("unknown cmdType=%s", cmdType));
         }

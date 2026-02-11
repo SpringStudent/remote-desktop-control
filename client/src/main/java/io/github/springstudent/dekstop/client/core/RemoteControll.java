@@ -74,11 +74,24 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
     }
 
     public void fireCmd(Cmd cmd) {
+        if (shouldSendByP2p(cmd)) {
+            boolean sentByP2p = RemoteClient.getRemoteClient().getP2pSessionManager().sendDirectCmd(cmd);
+            if (sentByP2p) {
+                return;
+            }
+        }
         if (channel != null && channel.isActive()) {
             channel.writeAndFlush(cmd);
         } else {
             Log.error("client fireCmd error,please check network connect");
         }
+    }
+
+    private boolean shouldSendByP2p(Cmd cmd) {
+        if (cmd == null || RemoteClient.getRemoteClient() == null || RemoteClient.getRemoteClient().getP2pSessionManager() == null) {
+            return false;
+        }
+        return cmd.getType().equals(CmdType.Capture) || cmd.getType().equals(CmdType.KeyControl) || cmd.getType().equals(CmdType.MouseControl);
     }
 
     protected void showMessageDialog(Object msg, int messageType) {
