@@ -75,7 +75,7 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
 
     public void fireCmd(Cmd cmd) {
         if (channel != null && channel.isActive()) {
-            channel.writeAndFlush(cmd);
+            RemoteClient.getRemoteClient().routeCmd(cmd, channel);
         } else {
             Log.error("client fireCmd error,please check network connect");
         }

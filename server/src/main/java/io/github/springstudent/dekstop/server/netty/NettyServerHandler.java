@@ -73,6 +73,10 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
                             ctx.channel().writeAndFlush(new CmdResCapture(CmdResCapture.PWDERROR));
                         } else {
                             NettyChannelManager.bindChannelBrother(ctx.channel(), controlledChannel);
+                            P2pSession session = P2pSessionManager.create(ctx.channel(), controlledChannel);
+                            CmdP2pResult bootstrap = new CmdP2pResult(session.getSessionId(), session.getToken(), session.getExpireAt(), CmdP2pResult.OK, "bootstrap");
+                            ctx.channel().writeAndFlush(bootstrap);
+                            controlledChannel.writeAndFlush(bootstrap);
                         }
                     } else {
                         //控制端正在被控制发起其他远程控制，提示“请先断开其他远程控制中的连接”
@@ -104,6 +108,18 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
                     controlledChannel.writeAndFlush(cmd);
                 }
             }
+        } else if (cmd instanceof AbstractCmdP2pSignal) {
+            AbstractCmdP2pSignal signal = (AbstractCmdP2pSignal) cmd;
+            if (!P2pSessionManager.validate(signal)) {
+                ctx.channel().writeAndFlush(new CmdP2pResult(signal.getSessionId(), signal.getToken(), 0L, CmdP2pResult.INVALID, "invalid signaling packet"));
+                return;
+            }
+            Channel peer = P2pSessionManager.peerChannel(signal, ctx.channel());
+            if (peer != null && peer.isActive()) {
+                peer.writeAndFlush(signal);
+            } else {
+                ctx.channel().writeAndFlush(new CmdP2pResult(signal.getSessionId(), signal.getToken(), 0L, CmdP2pResult.INVALID, "peer unavailable"));
+            }
         } else if (cmd.getType().equals(CmdType.ClipboardText) || cmd.getType().equals(CmdType.ClipboardTransfer)) {
             String controllDeviceCode = NettyUtils.getControllDeviceCode(ctx.channel());
             if (StrUtil.isNotEmpty(controllDeviceCode)) {
@@ -132,6 +148,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        P2pSessionManager.removeByChannel(ctx.channel());
         NettyChannelManager.removeChannelAndBrother(ctx.channel());
         super.channelInactive(ctx);
     }
@@ -143,4 +160,3 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
     }
 
 }
-
