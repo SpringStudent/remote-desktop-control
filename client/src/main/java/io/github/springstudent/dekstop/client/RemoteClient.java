@@ -3,6 +3,7 @@ package io.github.springstudent.dekstop.client;
 import io.github.springstudent.dekstop.client.core.*;
 import io.github.springstudent.dekstop.client.netty.RemoteChannelHandler;
 import io.github.springstudent.dekstop.client.netty.RemoteStateIdleHandler;
+import io.github.springstudent.dekstop.client.p2p.P2pSessionManager;
 import io.github.springstudent.dekstop.common.command.*;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.protocol.NettyDecoder;
@@ -53,6 +54,8 @@ public class RemoteClient extends RemoteFrame {
     private RemoteController controller;
 
     private RobotsClient robotsClient;
+
+    private final P2pSessionManager p2pSessionManager = new P2pSessionManager(this::handleDirectCmd);
 
     public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort) {
         remoteClient = this;
@@ -148,10 +151,41 @@ public class RemoteClient extends RemoteFrame {
             setDeviceCodeAndPassword(clientInfo.getDeviceCode(), clientInfo.getPassword());
             NettyUtils.updateDeviceCode(ctx.channel(), clientInfo.getDeviceCode());
             updateConnectionStatus(true);
+        } else if (cmd.getType().equals(CmdType.P2pResult)) {
+            CmdP2pResult result = (CmdP2pResult) cmd;
+            if (result.getCode() == CmdP2pResult.OK && "bootstrap".equals(result.getMessage())) {
+                p2pSessionManager.handleBootstrap(result, ctx.channel());
+            }
+        } else if (cmd.getType().equals(CmdType.P2pOffer) || cmd.getType().equals(CmdType.P2pAnswer) || cmd.getType().equals(CmdType.P2pCandidate)) {
+            p2pSessionManager.handleSignal(cmd, ctx.channel());
         } else {
             controller.handleCmd(cmd);
             controlled.handleCmd(cmd);
         }
+    }
+
+    public void routeCmd(Cmd cmd, Channel channel) {
+        if (channel == null || !channel.isActive()) {
+            return;
+        }
+        if (p2pSessionManager.isSignalCommand(cmd)) {
+            channel.writeAndFlush(cmd);
+            return;
+        }
+        if ((cmd.getType().equals(CmdType.Capture) || cmd.getType().equals(CmdType.KeyControl) || cmd.getType().equals(CmdType.MouseControl))
+                && p2pSessionManager.shouldPreferDirect() && !p2pSessionManager.isExpired()) {
+            if (!p2pSessionManager.sendDirect(cmd)) {
+                p2pSessionManager.onDirectUnavailable();
+                channel.writeAndFlush(cmd);
+            }
+            return;
+        }
+        channel.writeAndFlush(cmd);
+    }
+
+    private void handleDirectCmd(Cmd cmd) {
+        controller.handleCmd(cmd);
+        controlled.handleCmd(cmd);
     }
 
     public void setChannel(Channel channel) {
