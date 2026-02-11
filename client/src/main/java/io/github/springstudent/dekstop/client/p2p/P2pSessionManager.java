@@ -16,6 +16,7 @@ import java.util.List;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -31,6 +32,7 @@ public class P2pSessionManager {
     private volatile String token;
     private volatile long expireAt;
     private volatile long negotiationStartedAt;
+    private volatile ScheduledFuture<?> readyProbeFuture;
     private final AtomicLong p2pSuccess = new AtomicLong();
     private final AtomicLong fallbackCount = new AtomicLong();
     private final AtomicLong firstFrameLatencyMs = new AtomicLong(-1);
@@ -45,6 +47,7 @@ public class P2pSessionManager {
         this.token = result.getToken();
         this.expireAt = result.getExpireAt();
         this.negotiationStartedAt = System.currentTimeMillis();
+        cancelReadyProbe();
         this.state = P2pState.P2P_NEGOTIATING;
         this.ice4jTransport = Ice4jTransport.create(this::handleDirectInboundCmd);
         if (this.ice4jTransport == null) {
@@ -52,6 +55,7 @@ public class P2pSessionManager {
             return;
         }
         sendOffer(channel);
+        scheduleReadyProbe();
         scheduler.schedule(new Runnable() {
             @Override
             public void run() {
@@ -72,6 +76,7 @@ public class P2pSessionManager {
                 sendAnswer(channel);
                 if (ice4jTransport.startConnectivityChecks()) {
                     markP2pActiveIfReady();
+                    scheduleReadyProbe();
                 }
             } else {
                 fallback("apply remote offer failed");
@@ -80,6 +85,7 @@ public class P2pSessionManager {
             CmdP2pAnswer answer = (CmdP2pAnswer) cmd;
             if (ice4jTransport.applyRemoteDescription(answer.getSdp()) && ice4jTransport.startConnectivityChecks()) {
                 markP2pActiveIfReady();
+                scheduleReadyProbe();
             } else {
                 fallback("apply remote answer failed");
             }
@@ -120,6 +126,29 @@ public class P2pSessionManager {
         }
     }
 
+    private synchronized void scheduleReadyProbe() {
+        if (readyProbeFuture != null && !readyProbeFuture.isCancelled()) {
+            return;
+        }
+        readyProbeFuture = scheduler.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                if (state != P2pState.P2P_NEGOTIATING) {
+                    cancelReadyProbe();
+                    return;
+                }
+                markP2pActiveIfReady();
+            }
+        }, 100, 200, TimeUnit.MILLISECONDS);
+    }
+
+    private synchronized void cancelReadyProbe() {
+        if (readyProbeFuture != null) {
+            readyProbeFuture.cancel(false);
+            readyProbeFuture = null;
+        }
+    }
+
     private void handleDirectInboundCmd(Cmd cmd) {
         markP2pActive();
         if (directCmdConsumer != null) {
@@ -130,6 +159,7 @@ public class P2pSessionManager {
     private synchronized void markP2pActive() {
         if (state != P2pState.P2P_ACTIVE) {
             state = P2pState.P2P_ACTIVE;
+            cancelReadyProbe();
             p2pSuccess.incrementAndGet();
             if (firstFrameLatencyMs.get() < 0) {
                 firstFrameLatencyMs.set(System.currentTimeMillis() - negotiationStartedAt);
@@ -142,6 +172,7 @@ public class P2pSessionManager {
             return;
         }
         state = P2pState.RELAY_FALLBACK;
+        cancelReadyProbe();
         fallbackCount.incrementAndGet();
         Log.warn("fallback to relay: " + reason);
     }
@@ -235,7 +266,8 @@ public class P2pSessionManager {
                 Class<?> transportClass = Class.forName("org.ice4j.Transport");
                 Object udp = Enum.valueOf((Class<Enum>) transportClass, "UDP");
 
-                Object component = invoke(agent, "createComponent", new Class[]{Class.forName("org.ice4j.ice.IceMediaStream"), transportClass, int.class, int.class, int.class}, stream, udp, 40000, 45000, 50000);
+                // ice4j expects (preferredPort, minPort, maxPort). Keep preferred within range for 1.x compatibility.
+                Object component = invoke(agent, "createComponent", new Class[]{Class.forName("org.ice4j.ice.IceMediaStream"), transportClass, int.class, int.class, int.class}, stream, udp, 45000, 40000, 50000);
 
                 Ice4jTransport transport = new Ice4jTransport(agent, stream, component, inboundConsumer);
                 transport.attachStateListener();
@@ -248,8 +280,8 @@ public class P2pSessionManager {
 
         String localDescription() {
             try {
-                String ufrag = String.valueOf(invoke(agent, "getLocalUfrag", new Class[]{}));
-                String pwd = String.valueOf(invoke(agent, "getLocalPassword", new Class[]{}));
+                String ufrag = String.valueOf(invokeNoArgAny("getLocalUfrag"));
+                String pwd = String.valueOf(invokeNoArgAny("getLocalPassword"));
                 StringBuilder sb = new StringBuilder();
                 sb.append("ufrag=").append(ufrag).append("\n");
                 sb.append("pwd=").append(pwd).append("\n");
@@ -295,8 +327,9 @@ public class P2pSessionManager {
                 if (remoteUfrag == null || remotePwd == null) {
                     return false;
                 }
-                invoke(agent, "setRemoteUfrag", new Class[]{Class.forName("org.ice4j.ice.IceMediaStream"), String.class}, stream, remoteUfrag);
-                invoke(agent, "setRemotePassword", new Class[]{Class.forName("org.ice4j.ice.IceMediaStream"), String.class}, stream, remotePwd);
+                if (!setRemoteCredential("setRemoteUfrag", remoteUfrag) || !setRemoteCredential("setRemotePassword", remotePwd)) {
+                    return false;
+                }
                 for (String c : candidateLines) {
                     addRemoteCandidate(c);
                 }
@@ -360,20 +393,16 @@ public class P2pSessionManager {
 
         private void attachStateListener() {
             try {
-                Class<?> pcl = Class.forName("java.beans.PropertyChangeListener");
-                Object listener = java.lang.reflect.Proxy.newProxyInstance(
-                        pcl.getClassLoader(), new Class[]{pcl},
-                        (proxy, method, args) -> {
-                            if ("propertyChange".equals(method.getName())) {
-                                ensureSelectedSocket();
-                                if (selectedSocket != null) {
-                                    startReceiverIfNeeded();
-                                }
-                            }
-                            return null;
+                java.beans.PropertyChangeListener listener = new java.beans.PropertyChangeListener() {
+                    @Override
+                    public void propertyChange(java.beans.PropertyChangeEvent evt) {
+                        ensureSelectedSocket();
+                        if (selectedSocket != null) {
+                            startReceiverIfNeeded();
                         }
-                );
-                invoke(agent, "addStateChangeListener", new Class[]{pcl}, listener);
+                    }
+                };
+                invoke(agent, "addStateChangeListener", new Class[]{java.beans.PropertyChangeListener.class}, listener);
             } catch (Exception e) {
                 Log.warn("attach state listener failed", e);
             }
@@ -431,6 +460,56 @@ public class P2pSessionManager {
                 }
             } catch (Exception e) {
                 Log.debug("selected socket not ready yet");
+            }
+        }
+
+        private Object invokeNoArgAny(String methodName) throws Exception {
+            if (hasMethod(agent, methodName, new Class[]{})) {
+                return invoke(agent, methodName, new Class[]{});
+            }
+            if (hasMethod(stream, methodName, new Class[]{})) {
+                return invoke(stream, methodName, new Class[]{});
+            }
+            throw new NoSuchMethodException(methodName);
+        }
+
+        private boolean setRemoteCredential(String methodName, String value) {
+            try {
+                Class<?> iceStreamClass = Class.forName("org.ice4j.ice.IceMediaStream");
+                if (invokeIfExists(agent, methodName, new Class[]{iceStreamClass, String.class}, stream, value)) {
+                    return true;
+                }
+                if (invokeIfExists(agent, methodName, new Class[]{String.class}, value)) {
+                    return true;
+                }
+                if (invokeIfExists(stream, methodName, new Class[]{String.class}, value)) {
+                    return true;
+                }
+            } catch (Exception e) {
+                Log.warn("set remote credential failed: " + methodName, e);
+                return false;
+            }
+            Log.warn("set remote credential method missing: " + methodName);
+            return false;
+        }
+
+        private static boolean hasMethod(Object target, String name, Class<?>[] paramTypes) {
+            try {
+                target.getClass().getMethod(name, paramTypes);
+                return true;
+            } catch (NoSuchMethodException e) {
+                return false;
+            }
+        }
+
+        private static boolean invokeIfExists(Object target, String name, Class<?>[] paramTypes, Object... args) throws Exception {
+            try {
+                Method m = target.getClass().getMethod(name, paramTypes);
+                m.setAccessible(true);
+                m.invoke(target, args);
+                return true;
+            } catch (NoSuchMethodException e) {
+                return false;
             }
         }
 
