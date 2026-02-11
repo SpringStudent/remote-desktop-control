@@ -55,7 +55,8 @@ public class RemoteClient extends RemoteFrame {
 
     private RobotsClient robotsClient;
 
-    private final P2pSessionManager p2pSessionManager = new P2pSessionManager();
+    private final P2pSessionManager p2pSessionManager = new P2pSessionManager(this::handleDirectCmd);
+
 
     public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort) {
         remoteClient = this;
@@ -182,6 +183,12 @@ public class RemoteClient extends RemoteFrame {
         }
         channel.writeAndFlush(cmd);
     }
+
+    private void handleDirectCmd(Cmd cmd) {
+        controller.handleCmd(cmd);
+        controlled.handleCmd(cmd);
+    }
+
 
     public void setChannel(Channel channel) {
         controller.setChannel(channel);
