@@ -91,7 +91,7 @@
             <dependency>
                 <groupId>org.jitsi</groupId>
                 <artifactId>ice4j</artifactId>
-                <version>3.0-57-gf4e5cfd</version>
+                <version>3.2-12-gc2cbf61</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
