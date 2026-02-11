@@ -263,7 +263,7 @@ public class P2pSessionManager {
         static Ice4jTransport create(Consumer<Cmd> inboundConsumer) {
             try {
                 Class<?> agentClass = Class.forName("org.ice4j.ice.Agent");
-                Object agent = agentClass.newInstance();
+                Object agent = agentClass.getDeclaredConstructor().newInstance();
 
                 Object stream = invoke(agent, "createMediaStream", new Class[]{String.class}, "desktop-data");
                 Class<?> transportClass = Class.forName("org.ice4j.Transport");
@@ -304,7 +304,10 @@ public class P2pSessionManager {
                 Object locals = invoke(component, "getLocalCandidates", new Class[]{});
                 if (locals instanceof Iterable) {
                     for (Object c : (Iterable<?>) locals) {
-                        lines.add(String.valueOf(c));
+                        String line = candidateToSdpLine(c);
+                        if (line != null && !line.isEmpty()) {
+                            lines.add(line);
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -318,7 +321,7 @@ public class P2pSessionManager {
                 String remoteUfrag = null;
                 String remotePwd = null;
                 List<String> candidateLines = new ArrayList<String>();
-                for (String line : desc.split("\\n")) {
+                for (String line : desc.split("\\r?\\n")) {
                     if (line.startsWith("ufrag=")) {
                         remoteUfrag = line.substring("ufrag=".length()).trim();
                     } else if (line.startsWith("pwd=")) {
@@ -364,7 +367,8 @@ public class P2pSessionManager {
         private Object parseRemoteCandidate(String candidateLine) {
             try {
                 Class<?> parser = Class.forName("org.ice4j.ice.sdp.CandidateAttribute");
-                Object parsed = invokeStatic(parser, "parse", new Class[]{String.class}, candidateLine);
+                String normalizedLine = normalizeCandidateSdpLine(candidateLine);
+                Object parsed = parseCandidateAttribute(parser, normalizedLine);
                 if (parsed == null) {
                     return null;
                 }
@@ -385,6 +389,65 @@ public class P2pSessionManager {
                 Log.warn("parse remote candidate failed");
                 return null;
             }
+        }
+
+        private Object parseCandidateAttribute(Class<?> parserClass, String normalizedLine) {
+            if (normalizedLine == null || normalizedLine.isEmpty()) {
+                return null;
+            }
+            String[] parseInputs = new String[]{
+                    normalizedLine,
+                    "candidate:" + normalizedLine,
+                    "a=candidate:" + normalizedLine
+            };
+            for (String input : parseInputs) {
+                try {
+                    Object parsed = invokeStatic(parserClass, "parse", new Class[]{String.class}, input);
+                    if (parsed != null) {
+                        return parsed;
+                    }
+                } catch (Exception ignored) {
+                    // try next format
+                }
+            }
+            return null;
+        }
+
+        private String candidateToSdpLine(Object candidate) {
+            if (candidate == null) {
+                return null;
+            }
+            Object attr = invokeIfExistsReturning(candidate, "toAttributeFormat", new Class[]{});
+            if (attr == null) {
+                attr = invokeIfExistsReturning(candidate, "toSDP", new Class[]{});
+            }
+            if (attr == null) {
+                Object candidateAttr = invokeIfExistsReturning(candidate, "getAttribute", new Class[]{});
+                if (candidateAttr != null) {
+                    attr = candidateAttr;
+                }
+            }
+            if (attr == null) {
+                attr = candidate;
+            }
+            return normalizeCandidateSdpLine(String.valueOf(attr));
+        }
+
+        private String normalizeCandidateSdpLine(String line) {
+            if (line == null) {
+                return null;
+            }
+            String normalized = line.trim();
+            if (normalized.startsWith("a=")) {
+                normalized = normalized.substring(2).trim();
+            }
+            if (normalized.startsWith("candidate=")) {
+                normalized = normalized.substring("candidate=".length()).trim();
+            }
+            if (normalized.startsWith("candidate:")) {
+                normalized = normalized.substring("candidate:".length()).trim();
+            }
+            return normalized;
         }
 
         private boolean invokeAddRemoteCandidate(Object remoteCandidate) {
