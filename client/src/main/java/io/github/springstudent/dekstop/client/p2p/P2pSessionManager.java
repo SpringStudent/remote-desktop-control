@@ -234,8 +234,7 @@ public class P2pSessionManager {
                 Class<?> transportClass = Class.forName("org.ice4j.Transport");
                 Object udp = Enum.valueOf((Class<Enum>) transportClass, "UDP");
 
-                Object component = invoke(agent, "createComponent", new Class[]{Class.forName("org.ice4j.ice.IceMediaStream"), transportClass, int.class, int.class, int.class}, stream, udp, 40000, 45000, 50000);
-
+                Object component = invoke(agent, "createComponent", new Class[]{Class.forName("org.ice4j.ice.IceMediaStream"), transportClass, int.class, int.class, int.class}, stream, udp, 45000, 40000, 50000);
                 Ice4jTransport transport = new Ice4jTransport(agent, stream, component, inboundConsumer);
                 transport.attachStateListener();
                 return transport;
