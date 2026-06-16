@@ -57,7 +57,7 @@
             <dependency>
                 <groupId>io.github.springstudent</groupId>
                 <artifactId>GyJdbc</artifactId>
-                <version>1.4.8.RELEASE</version>
+                <version>1.5.0.RELEASE</version>
             </dependency>
             <!--fast json-->
             <dependency>
