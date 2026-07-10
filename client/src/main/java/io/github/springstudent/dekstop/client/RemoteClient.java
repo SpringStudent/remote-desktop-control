@@ -215,9 +215,9 @@ public class RemoteClient extends RemoteFrame {
         if (System.getProperty("robotPort") != null) {
             robotPort = Integer.parseInt(System.getProperty("robotPort"));
         }
-        String serverIp = "192.168.0.110";
+        String serverIp = "192.168.0.109";
         Integer serverPort = 54321;
-        String clipboardServer = "http://192.168.0.110:12345/remote-desktop-control";
+        String clipboardServer = "http://192.168.0.109:12345/remote-desktop-control";
         if (System.getProperty("configFile") != null) {
             Properties properties = new Properties();
             try (InputStream input = new FileInputStream(System.getProperty("configFile"))) {
