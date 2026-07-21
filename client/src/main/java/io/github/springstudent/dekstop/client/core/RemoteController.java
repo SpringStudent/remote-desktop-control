@@ -328,118 +328,134 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
             @Override
             public void actionPerformed(ActionEvent ev) {
-                JFrame compressionFrame = (JFrame) SwingUtilities.getRoot(RemoteClient.getRemoteClient().getRemoteScreen());
+                JFrame parent = (JFrame) SwingUtilities.getRoot(RemoteClient.getRemoteClient().getRemoteScreen());
 
                 final JPanel pane = new JPanel();
-                pane.setLayout(new GridLayout(5, 2, 10, 10));
+                pane.setLayout(new BoxLayout(pane, BoxLayout.Y_AXIS));
+                pane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-                final JLabel methodLbl = new JLabel("压缩算法");
-                final JComboBox<CompressionMethod> methodCb = new JComboBox<>(Stream.of(CompressionMethod.values()).filter(e -> !e.equals(CompressionMethod.NONE)).toArray(CompressionMethod[]::new));
+                // ── 压缩算法 ──
+                JPanel algoRow = new JPanel(new BorderLayout(5, 0));
+                algoRow.add(new JLabel("压缩算法"), BorderLayout.WEST);
+                final JComboBox<CompressionMethod> methodCb = new JComboBox<>(
+                        Stream.of(CompressionMethod.values()).filter(e -> !e.equals(CompressionMethod.NONE)).toArray(CompressionMethod[]::new));
                 methodCb.setSelectedItem(compressorEngineConfiguration.getMethod());
-                pane.add(methodLbl);
-                pane.add(methodCb);
+                algoRow.add(methodCb, BorderLayout.CENTER);
+                pane.add(algoRow);
+                pane.add(Box.createVerticalStrut(8));
 
-                final JLabel useCacheLbl = new JLabel("使用缓存");
-                final JCheckBox useCacheCb = new JCheckBox();
-                useCacheCb.setSelected(compressorEngineConfiguration.useCache());
-                pane.add(useCacheLbl);
-                pane.add(useCacheCb);
-
-                final JLabel maxSizeLbl = new JLabel("最大缓存值");
-                final JTextField maxSizeTf = new JTextField(valueOf(compressorEngineConfiguration.getCacheMaxSize()));
-                pane.add(maxSizeLbl);
-                pane.add(maxSizeTf);
-
-                final JLabel purgeSizeLbl = new JLabel("缓存重置值");
-                final JTextField purgeSizeTf = new JTextField(valueOf(compressorEngineConfiguration.getCachePurgeSize()));
-                pane.add(purgeSizeLbl);
-                pane.add(purgeSizeTf);
-
-                final JLabel levelLbl = new JLabel("压缩级别(ZSTD)");
-                levelLbl.setToolTipText("仅对ZSTD压缩算法生效：1=最快，9=最小体积");
+                // ── 压缩级别 (仅ZSTD可见) ──
+                final JPanel levelRow = new JPanel(new BorderLayout(5, 0));
+                final JLabel levelLbl = new JLabel("压缩级别");
+                final JLabel levelVal = new JLabel();
                 final JSlider levelSlider = new JSlider(HORIZONTAL, 1, 9, compressorEngineConfiguration.getCompressionLevel());
-                final Properties levelLabelTable = new Properties();
-                JLabel actualLevel = new JLabel(format("  %d  ", levelSlider.getValue()));
-                levelLabelTable.put(1, new JLabel("最快"));
-                levelLabelTable.put(5, actualLevel);
-                levelLabelTable.put(9, new JLabel("最优"));
-                levelSlider.setLabelTable(levelLabelTable);
-                levelSlider.setMajorTickSpacing(1);
+                levelSlider.setMajorTickSpacing(4);
+                levelSlider.setMinorTickSpacing(1);
                 levelSlider.setPaintTicks(true);
-                levelSlider.setPaintLabels(true);
                 levelSlider.setSnapToTicks(true);
-                levelSlider.addChangeListener(e -> {
-                    actualLevel.setText(format("  %d  ", levelSlider.getValue()));
-                });
-                pane.add(levelLbl);
-                pane.add(levelSlider);
+                levelVal.setText(String.valueOf(levelSlider.getValue()));
+                levelSlider.addChangeListener(e -> levelVal.setText(String.valueOf(levelSlider.getValue())));
 
-                useCacheCb.addActionListener(ev1 -> {
-                    maxSizeLbl.setEnabled(useCacheCb.isSelected());
-                    maxSizeTf.setEnabled(useCacheCb.isSelected());
-                    purgeSizeLbl.setEnabled(useCacheCb.isSelected());
-                    purgeSizeTf.setEnabled(useCacheCb.isSelected());
-                });
+                JPanel levelBar = new JPanel(new BorderLayout(5, 0));
+                levelBar.add(new JLabel("最快"), BorderLayout.WEST);
+                levelBar.add(levelSlider, BorderLayout.CENTER);
+                levelBar.add(new JLabel("最优"), BorderLayout.EAST);
 
-                methodCb.addActionListener(ev2 -> {
+                levelRow.add(levelLbl, BorderLayout.WEST);
+                levelRow.add(levelBar, BorderLayout.CENTER);
+                levelRow.add(levelVal, BorderLayout.EAST);
+                pane.add(levelRow);
+                pane.add(Box.createVerticalStrut(2));
+                final JLabel levelHint = new JLabel("仅对 ZSTD 压缩算法生效");
+                levelHint.setFont(levelHint.getFont().deriveFont(Font.ITALIC, 10f));
+                levelHint.setForeground(Color.GRAY);
+                pane.add(levelHint);
+                pane.add(Box.createVerticalStrut(10));
+
+                // ── 瓦片缓存 ──
+                final JPanel cachePanel = new JPanel();
+                cachePanel.setLayout(new BoxLayout(cachePanel, BoxLayout.Y_AXIS));
+                cachePanel.setBorder(BorderFactory.createTitledBorder("瓦片缓存"));
+
+                final JCheckBox useCacheCb = new JCheckBox("启用瓦片缓存");
+                useCacheCb.setSelected(compressorEngineConfiguration.useCache());
+                cachePanel.add(useCacheCb);
+                cachePanel.add(Box.createVerticalStrut(5));
+
+                JPanel maxRow = new JPanel(new BorderLayout(5, 0));
+                maxRow.add(new JLabel("最大缓存"), BorderLayout.WEST);
+                final JSpinner maxSizeSp = new JSpinner(new SpinnerNumberModel(
+                        compressorEngineConfiguration.getCacheMaxSize(), 100, 100000, 100));
+                ((JSpinner.DefaultEditor) maxSizeSp.getEditor()).getTextField().setColumns(6);
+                maxRow.add(maxSizeSp, BorderLayout.CENTER);
+                maxRow.add(new JLabel("个瓦片"), BorderLayout.EAST);
+                cachePanel.add(maxRow);
+                cachePanel.add(Box.createVerticalStrut(3));
+
+                JPanel purgeRow = new JPanel(new BorderLayout(5, 0));
+                purgeRow.add(new JLabel("清理阈值"), BorderLayout.WEST);
+                final JSpinner purgeSizeSp = new JSpinner(new SpinnerNumberModel(
+                        compressorEngineConfiguration.getCachePurgeSize(), 50, 50000, 100));
+                ((JSpinner.DefaultEditor) purgeSizeSp.getEditor()).getTextField().setColumns(6);
+                purgeRow.add(purgeSizeSp, BorderLayout.CENTER);
+                purgeRow.add(new JLabel("个瓦片"), BorderLayout.EAST);
+                cachePanel.add(purgeRow);
+                cachePanel.add(Box.createVerticalStrut(3));
+
+                JLabel cacheHint = new JLabel("缓存满时自动清理至阈值");
+                cacheHint.setFont(cacheHint.getFont().deriveFont(Font.ITALIC, 10f));
+                cacheHint.setForeground(Color.GRAY);
+                cachePanel.add(cacheHint);
+
+                pane.add(cachePanel);
+
+                // ── 交互逻辑 ──
+                final JPanel maxRowRef = maxRow;
+                final JPanel purgeRowRef = purgeRow;
+                final JLabel cacheHintRef = cacheHint;
+
+                Runnable updateVisibility = () -> {
+                    boolean useCache = useCacheCb.isSelected();
+                    maxSizeSp.setEnabled(useCache);
+                    purgeSizeSp.setEnabled(useCache);
+                    cacheHintRef.setEnabled(useCache);
                     boolean isZstd = methodCb.getSelectedItem() == CompressionMethod.ZSTD;
-                    levelLbl.setEnabled(isZstd);
                     levelSlider.setEnabled(isZstd);
-                });
+                    levelHint.setEnabled(isZstd);
+                    levelLbl.setEnabled(isZstd);
+                    levelVal.setEnabled(isZstd);
+                };
+                useCacheCb.addActionListener(e -> updateVisibility.run());
+                methodCb.addActionListener(e -> updateVisibility.run());
 
-                maxSizeLbl.setEnabled(useCacheCb.isSelected());
-                maxSizeTf.setEnabled(useCacheCb.isSelected());
-                purgeSizeLbl.setEnabled(useCacheCb.isSelected());
-                purgeSizeTf.setEnabled(useCacheCb.isSelected());
+                // Initial visibility
+                updateVisibility.run();
 
-                boolean isZstd = compressorEngineConfiguration.getMethod() == CompressionMethod.ZSTD;
-                levelLbl.setEnabled(isZstd);
-                levelSlider.setEnabled(isZstd);
-
-                final boolean ok = DialogFactory.showOkCancel(compressionFrame, "压缩", pane, true, () -> {
-                    final String max = maxSizeTf.getText();
-                    if (max.isEmpty()) {
-                        return "缓存最大值不能为空";
-                    }
-                    final int maxValue;
-                    try {
-                        maxValue = Integer.parseInt(max);
-                    } catch (NumberFormatException ex) {
-                        return "缓存最大值只能为数字";
-                    }
-                    if (maxValue <= 0) {
-                        return "缓存最大值必须为正整数";
-                    }
-                    final String purge = purgeSizeTf.getText();
-                    if (purge.isEmpty()) {
-                        return "缓存重置值不能为空";
-                    }
-                    final int purgeValue;
-                    try {
-                        purgeValue = Integer.parseInt(purge);
-                    } catch (NumberFormatException ex) {
-                        return "缓存重置值必须为数字";
-                    }
-                    if (purgeValue <= 0) {
-                        return "缓存重置值必须为正整数";
-                    }
-                    if (purgeValue >= maxValue) {
-                        return "缓存重置值不能大于缓存最大值";
+                final boolean ok = DialogFactory.showOkCancel(parent, "压缩", pane, true, () -> {
+                    if (useCacheCb.isSelected()) {
+                        try {
+                            int maxVal = (Integer) maxSizeSp.getValue();
+                            int purgeVal = (Integer) purgeSizeSp.getValue();
+                            if (maxVal <= 0) return "缓存最大值必须为正整数";
+                            if (purgeVal <= 0) return "缓存清理阈值必须为正整数";
+                            if (purgeVal >= maxVal) return "清理阈值不能大于最大缓存";
+                        } catch (Exception e) {
+                            return "请输入有效的数字";
+                        }
                     }
                     return null;
                 });
 
                 if (ok) {
-                    final CompressorEngineConfiguration newCompressorEngineConfiguration = new CompressorEngineConfiguration(
+                    final CompressorEngineConfiguration newConfig = new CompressorEngineConfiguration(
                             (CompressionMethod) methodCb.getSelectedItem(),
                             useCacheCb.isSelected(),
-                            Integer.parseInt(maxSizeTf.getText()),
-                            Integer.parseInt(purgeSizeTf.getText()),
+                            (Integer) maxSizeSp.getValue(),
+                            (Integer) purgeSizeSp.getValue(),
                             levelSlider.getValue());
-                    if (!newCompressorEngineConfiguration.equals(compressorEngineConfiguration)) {
-                        compressorEngineConfiguration = newCompressorEngineConfiguration;
+                    if (!newConfig.equals(compressorEngineConfiguration)) {
+                        compressorEngineConfiguration = newConfig;
                         compressorEngineConfiguration.persist();
-
                         sendCompressorConfiguration(compressorEngineConfiguration);
                     }
                 }
