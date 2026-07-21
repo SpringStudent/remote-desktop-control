@@ -26,6 +26,16 @@ streaming media: https://github.com/SpringStudent/a-da
 5. **Multiscreen Support**
     * View different screens in real time by selecting them.
 
+6. **LAN P2P Direct Connection**
+    * When both peers are on the same LAN, screen capture and input events bypass the relay server
+    * Reduces latency and server bandwidth usage
+    * Transparent fallback to server relay if direct connection fails or drops
+    * Configurable bind address and port via `configFile` properties `p2pServerIp` / `p2pServerPort`
+
+7. **Configurable Zstd Compression Level**
+    * Adjustable compression level (1–9) via the compression settings dialog
+    * Level 1 (fastest) for LAN, higher levels for bandwidth-constrained WAN
+
 ## Screenshots
 
 ### Main Control Panel
@@ -68,9 +78,20 @@ streaming media: https://github.com/SpringStudent/a-da
    RemoteServer.java
    ```
 
-4. Run the client: Modify the RemoteClient.java parameters for serverIp and serverPort and clipboardServer addr
+4. Run the client: Modify the RemoteClient.java parameters for serverIp and serverPort and clipboardServer addr,
+   or use a configFile for externalized configuration:
+   ```properties
+   # configFile example
+   serverIp=192.168.0.110
+   serverPort=54321
+   clipboardServer=http://192.168.0.110:12345/remote-desktop-control
+   robotPort=55678
+   # Optional P2P settings — omit to auto-detect LAN addresses and use a random port
+   p2pServerIp=192.168.1.100
+   p2pServerPort=55432
+   ```
    ```bash
-   RemoteClient.java
+   RemoteClient.java -DconfigFile=/path/to/config.properties
    ```
 ### Demo Video
 

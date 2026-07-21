@@ -23,7 +23,17 @@ https://github.com/SpringStudent/a-da
 4. **粘贴板支持**
     * 支持粘贴板文本和文件传输。
 5. **多屏幕支持**
-    * 选择不同屏幕实时查看。 
+    * 选择不同屏幕实时查看。
+
+6. **局域网 P2P 直连**
+    * 两端同处一个局域网时，屏幕画面和键鼠事件不经服务器中继，直接点对点传输
+    * 降低延迟、节省服务器带宽
+    * 直连失败或断开时自动透明降级为服务器中继
+    * 支持通过 `configFile` 配置 `p2pServerIp` / `p2pServerPort` 指定绑定地址和端口
+
+7. **可配置 Zstd 压缩级别**
+    * 通过压缩设置对话框可调整 Zstd 压缩级别（1–9）
+    * 级别 1 最快适合局域网，高级别适合低带宽广域网
 
 ## 截图
 
@@ -66,9 +76,20 @@ https://github.com/SpringStudent/a-da
    RemoteServer.java
    ```
 
-4. 运行客户端：修改RemoteClient.java参数中的serverIp和serverPort和clipboardServer
+4. 运行客户端：修改RemoteClient.java参数中的serverIp和serverPort和clipboardServer，
+   或通过 configFile 外部化配置：
+   ```properties
+   # configFile 示例
+   serverIp=192.168.0.110
+   serverPort=54321
+   clipboardServer=http://192.168.0.110:12345/remote-desktop-control
+   robotPort=55678
+   # P2P 可选配置 — 不设则自动检测局域网地址并使用随机端口
+   p2pServerIp=192.168.1.100
+   p2pServerPort=55432
+   ```
    ```bash
-   RemoteClient.java
+   RemoteClient.java -DconfigFile=/path/to/config.properties
    ```
 ### 视频演示
 
