@@ -331,7 +331,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
                 JFrame compressionFrame = (JFrame) SwingUtilities.getRoot(RemoteClient.getRemoteClient().getRemoteScreen());
 
                 final JPanel pane = new JPanel();
-                pane.setLayout(new GridLayout(4, 2, 10, 10));
+                pane.setLayout(new GridLayout(5, 2, 10, 10));
 
                 final JLabel methodLbl = new JLabel("压缩算法");
                 final JComboBox<CompressionMethod> methodCb = new JComboBox<>(Stream.of(CompressionMethod.values()).filter(e -> !e.equals(CompressionMethod.NONE)).toArray(CompressionMethod[]::new));
@@ -355,6 +355,25 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
                 pane.add(purgeSizeLbl);
                 pane.add(purgeSizeTf);
 
+                final JLabel levelLbl = new JLabel("压缩级别(ZSTD)");
+                levelLbl.setToolTipText("仅对ZSTD压缩算法生效：1=最快，9=最小体积");
+                final JSlider levelSlider = new JSlider(HORIZONTAL, 1, 9, compressorEngineConfiguration.getCompressionLevel());
+                final Properties levelLabelTable = new Properties();
+                JLabel actualLevel = new JLabel(format("  %d  ", levelSlider.getValue()));
+                levelLabelTable.put(1, new JLabel("最快"));
+                levelLabelTable.put(5, actualLevel);
+                levelLabelTable.put(9, new JLabel("最优"));
+                levelSlider.setLabelTable(levelLabelTable);
+                levelSlider.setMajorTickSpacing(1);
+                levelSlider.setPaintTicks(true);
+                levelSlider.setPaintLabels(true);
+                levelSlider.setSnapToTicks(true);
+                levelSlider.addChangeListener(e -> {
+                    actualLevel.setText(format("  %d  ", levelSlider.getValue()));
+                });
+                pane.add(levelLbl);
+                pane.add(levelSlider);
+
                 useCacheCb.addActionListener(ev1 -> {
                     maxSizeLbl.setEnabled(useCacheCb.isSelected());
                     maxSizeTf.setEnabled(useCacheCb.isSelected());
@@ -362,10 +381,20 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
                     purgeSizeTf.setEnabled(useCacheCb.isSelected());
                 });
 
+                methodCb.addActionListener(ev2 -> {
+                    boolean isZstd = methodCb.getSelectedItem() == CompressionMethod.ZSTD;
+                    levelLbl.setEnabled(isZstd);
+                    levelSlider.setEnabled(isZstd);
+                });
+
                 maxSizeLbl.setEnabled(useCacheCb.isSelected());
                 maxSizeTf.setEnabled(useCacheCb.isSelected());
                 purgeSizeLbl.setEnabled(useCacheCb.isSelected());
                 purgeSizeTf.setEnabled(useCacheCb.isSelected());
+
+                boolean isZstd = compressorEngineConfiguration.getMethod() == CompressionMethod.ZSTD;
+                levelLbl.setEnabled(isZstd);
+                levelSlider.setEnabled(isZstd);
 
                 final boolean ok = DialogFactory.showOkCancel(compressionFrame, "压缩", pane, true, () -> {
                     final String max = maxSizeTf.getText();
@@ -401,7 +430,12 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
                 });
 
                 if (ok) {
-                    final CompressorEngineConfiguration newCompressorEngineConfiguration = new CompressorEngineConfiguration((CompressionMethod) methodCb.getSelectedItem(), useCacheCb.isSelected(), Integer.parseInt(maxSizeTf.getText()), Integer.parseInt(purgeSizeTf.getText()));
+                    final CompressorEngineConfiguration newCompressorEngineConfiguration = new CompressorEngineConfiguration(
+                            (CompressionMethod) methodCb.getSelectedItem(),
+                            useCacheCb.isSelected(),
+                            Integer.parseInt(maxSizeTf.getText()),
+                            Integer.parseInt(purgeSizeTf.getText()),
+                            levelSlider.getValue());
                     if (!newCompressorEngineConfiguration.equals(compressorEngineConfiguration)) {
                         compressorEngineConfiguration = newCompressorEngineConfiguration;
                         compressorEngineConfiguration.persist();

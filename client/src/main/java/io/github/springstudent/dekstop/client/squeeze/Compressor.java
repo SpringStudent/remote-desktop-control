@@ -4,6 +4,7 @@ package io.github.springstudent.dekstop.client.squeeze;
 import io.github.springstudent.dekstop.client.bean.Capture;
 import io.github.springstudent.dekstop.client.bean.CaptureTile;
 import io.github.springstudent.dekstop.common.bean.CompressionMethod;
+import io.github.springstudent.dekstop.common.bean.Constants;
 import io.github.springstudent.dekstop.common.bean.MemByteBuffer;
 import io.github.springstudent.dekstop.common.log.Log;
 
@@ -11,6 +12,8 @@ import java.awt.*;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public final class Compressor {
     /**
@@ -29,9 +32,14 @@ public final class Compressor {
     private static final Compressor XZ_COMPRESSOR = new Compressor(CompressionMethod.XZ, new NullRunLengthEncoder(), new XzZipper());
 
     /**
-     * ZSTD
+     * ZSTD (default level).
      */
     private static final Compressor ZSTD_COMPRESSOR = new Compressor(CompressionMethod.ZSTD, new NullRunLengthEncoder(), new ZstdZipper());
+
+    /**
+     * Cache ZSTD compressors by compression level so we don't recreate them per capture.
+     */
+    private static final ConcurrentMap<Integer, Compressor> ZSTD_BY_LEVEL = new ConcurrentHashMap<>();
 
     private final CompressionMethod method;
 
@@ -45,21 +53,38 @@ public final class Compressor {
         this.zipper = zipper;
     }
 
+    /**
+     * @deprecated use {@link #get(CompressionMethod, int)} to control compression level for ZSTD
+     */
+    @Deprecated
     public static Compressor get(CompressionMethod method) {
+        return get(method, Constants.DEFAULT_ZSTD_COMPRESSION_LEVEL);
+    }
 
+    /**
+     * Get a compressor for the given method and ZSTD compression level.
+     * The level parameter is ignored for non-ZSTD methods.
+     *
+     * @param method           compression algorithm
+     * @param compressionLevel ZSTD compression level (1 = fastest, 22 = max). Only used when method == ZSTD.
+     */
+    public static Compressor get(CompressionMethod method, int compressionLevel) {
         switch (method) {
             case ZIP:
                 return ZIP_COMPRESSOR;
             case XZ:
                 return XZ_COMPRESSOR;
             case ZSTD:
-                return ZSTD_COMPRESSOR;
+                if (compressionLevel == Constants.DEFAULT_ZSTD_COMPRESSION_LEVEL) {
+                    return ZSTD_COMPRESSOR;
+                }
+                return ZSTD_BY_LEVEL.computeIfAbsent(compressionLevel,
+                        level -> new Compressor(CompressionMethod.ZSTD, new NullRunLengthEncoder(), new ZstdZipper(level)));
             case NONE:
                 return NULL_COMPRESSOR;
             default:
                 throw new IllegalArgumentException("Unsupported compressor configuration [" + method + "]!");
         }
-
     }
 
     public CompressionMethod getMethod() {

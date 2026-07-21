@@ -149,7 +149,7 @@ public class CompressorEngine implements ReConfigurable<CompressorEngineConfigur
                     Log.info("Compressor engine has been reconfigured [tile:" + capture.getId() + "] " + xconfiguration);
                 }
             }
-            final Compressor compressor = Compressor.get(xconfiguration.getMethod());
+            final Compressor compressor = Compressor.get(xconfiguration.getMethod(), xconfiguration.getCompressionLevel());
             final MemByteBuffer compressed = compressor.compress(cache, capture);
 
             // Possibly blocking - no problem as we'll replace (and merge) in our queue

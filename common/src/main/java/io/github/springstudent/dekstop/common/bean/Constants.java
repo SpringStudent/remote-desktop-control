@@ -29,5 +29,10 @@ public class Constants {
      */
     public static final int DEFAULT_PURGE_SIZE = 16 * 1024;
 
+    /**
+     * Zstd compression level (1=fastest, 3=default, 19-22=maximum).
+     * Level 1 is preferred for real-time screen capture — LAN bandwidth is plentiful.
+     */
+    public static final int DEFAULT_ZSTD_COMPRESSION_LEVEL = 1;
 
 }

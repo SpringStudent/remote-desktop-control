@@ -27,7 +27,7 @@ public class CmdCompressorConf extends Cmd{
 
     @Override
     public int getWireSize() {
-        return 10;
+        return 11;
     }
 
     @Override
@@ -36,6 +36,7 @@ public class CmdCompressorConf extends Cmd{
         out.writeByte(configuration.useCache() ? 1 : 0);
         out.writeInt(configuration.getCacheMaxSize());
         out.writeInt(configuration.getCachePurgeSize());
+        out.writeByte(configuration.getCompressionLevel());
     }
 
     public static CmdCompressorConf decode(ByteBuf in) throws IOException {
@@ -43,7 +44,8 @@ public class CmdCompressorConf extends Cmd{
         final boolean useCase = in.readByte() == 1;
         final int maxSize = in.readInt();
         final int purgeSize = in.readInt();
-        return new CmdCompressorConf(new CompressorEngineConfiguration(method, useCase, maxSize, purgeSize));
+        final int compressionLevel = in.isReadable() ? in.readByte() & 0xFF : 1;
+        return new CmdCompressorConf(new CompressorEngineConfiguration(method, useCase, maxSize, purgeSize, compressionLevel));
     }
 
 
