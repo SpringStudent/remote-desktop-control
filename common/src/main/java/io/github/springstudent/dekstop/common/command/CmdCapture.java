@@ -55,7 +55,7 @@ public class CmdCapture extends Cmd {
         if (compressionConfiguration == null) {
             return 10 + payload.size();
         } else {
-            return 10 + 10 + payload.size();
+            return 10 + CmdCompressorConf.WIRE_SIZE + payload.size();
         }
     }
 

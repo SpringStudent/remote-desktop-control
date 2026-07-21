@@ -10,6 +10,9 @@ import java.io.IOException;
  * @date 2024/12/12 18:05
  **/
 public class CmdCompressorConf extends Cmd{
+
+    public static final int WIRE_SIZE = 11;
+
     private final CompressorEngineConfiguration configuration;
 
     public CmdCompressorConf(CompressorEngineConfiguration configuration) {
@@ -27,7 +30,7 @@ public class CmdCompressorConf extends Cmd{
 
     @Override
     public int getWireSize() {
-        return 11;
+        return WIRE_SIZE;
     }
 
     @Override
