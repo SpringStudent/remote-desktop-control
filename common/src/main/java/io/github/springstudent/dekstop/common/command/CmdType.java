@@ -24,6 +24,6 @@ public enum CmdType {
     ReqCliInfo,
     SelectScreen,
     ChangePwd,
-    P2P_OFFER,
-    P2P_ANSWER,
+    P2POffer,
+    P2PAnswer,
 }

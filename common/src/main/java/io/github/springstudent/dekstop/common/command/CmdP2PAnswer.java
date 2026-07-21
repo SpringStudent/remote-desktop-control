@@ -27,7 +27,7 @@ public class CmdP2PAnswer extends Cmd {
 
     @Override
     public CmdType getType() {
-        return CmdType.P2P_ANSWER;
+        return CmdType.P2PAnswer;
     }
 
     @Override

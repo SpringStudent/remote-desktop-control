@@ -37,7 +37,7 @@ public class CmdP2POffer extends Cmd {
 
     @Override
     public CmdType getType() {
-        return CmdType.P2P_OFFER;
+        return CmdType.P2POffer;
     }
 
     @Override

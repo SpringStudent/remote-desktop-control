@@ -93,6 +93,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
         compressorEngine.configure(new CompressorEngineConfiguration());
         captureEngine.start();
         compressorEngine.start(1);
+        startP2PListener();
         super.start();
     }
 
@@ -107,7 +108,6 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
             if (cmdResCapture.getCode() == CmdResCapture.START_) {
                 RemoteClient.getRemoteClient().setControlledAndCloseSessionLabelVisible(true);
                 start();
-                startP2PListener();
             } else if (cmdResCapture.getCode() == CmdResCapture.STOP_) {
                 RemoteClient.getRemoteClient().setControlledAndCloseSessionLabelVisible(false);
                 stop();
@@ -149,7 +149,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
                 captureEngine.addListener(compressorEngine);
             }
             captureEngine.start();
-        } else if (cmd.getType().equals(CmdType.P2P_ANSWER)) {
+        } else if (cmd.getType().equals(CmdType.P2PAnswer)) {
             CmdP2PAnswer answer = (CmdP2PAnswer) cmd;
             if (answer.isSuccess()) {
                 Channel p2pCh = p2pManager.getP2PChannel();

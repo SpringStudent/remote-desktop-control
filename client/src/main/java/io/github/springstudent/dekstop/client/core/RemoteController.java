@@ -170,9 +170,9 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
             }
         } else if (cmd.getType().equals(CmdType.ResRemoteClipboard)) {
             RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(true);
-        } else if (cmd.getType().equals(CmdType.P2P_OFFER)) {
+        } else if (cmd.getType().equals(CmdType.P2POffer)) {
             handleP2POffer((CmdP2POffer) cmd);
-        } else if (cmd.getType().equals(CmdType.P2P_ANSWER)) {
+        } else if (cmd.getType().equals(CmdType.P2PAnswer)) {
             CmdP2PAnswer answer = (CmdP2PAnswer) cmd;
             if (answer.isSuccess()) {
                 Channel p2pCh = p2pManager.getP2PChannel();
@@ -592,9 +592,5 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
             }
         }, "P2PConnector").start();
     }
-
-    public void onP2PDisconnected() {
-        setP2PChannel(null);
-        Log.info("P2P disconnected, falling back to server relay (controller side)");
-    }
+    
 }
