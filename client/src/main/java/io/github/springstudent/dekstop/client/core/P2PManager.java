@@ -38,14 +38,20 @@ public class P2PManager {
     private int listenerPort;
     private Channel p2pChannel;
     private final Object lock = new Object();
+    private String configuredBindHost;
+    private int configuredBindPort;
 
     /**
-     * Start a temporary Netty server socket on a random port.
+     * Start a temporary Netty server socket.
      * Called by the controlled peer after receiving CmdResCapture.START_.
      *
+     * @param bindHost the address to bind to, or null to bind to all interfaces
+     * @param bindPort the port to bind to, or <= 0 to use a random port
      * @return the actual port number, or -1 if failed
      */
-    public int startListener() {
+    public int startListener(String bindHost, int bindPort) {
+        this.configuredBindHost = bindHost;
+        this.configuredBindPort = bindPort;
         try {
             listenerGroup = new NioEventLoopGroup(1);
             ServerBootstrap bootstrap = new ServerBootstrap();
@@ -60,13 +66,18 @@ public class P2PManager {
                             ch.pipeline().addLast(new NettyDecoder());
                             ch.pipeline().addLast(new NettyEncoder());
                             ch.pipeline().addLast(new P2PChannelHandler());
-                            // Capture the accepted channel as the P2P channel
                             setAcceptedChannel(ch);
                         }
                     });
 
-            // Bind to all interfaces on a random port
-            Channel serverChannel = bootstrap.bind(0).sync().channel();
+            // Bind to configured address or all interfaces
+            java.net.InetSocketAddress bindAddr;
+            if (bindHost != null && !bindHost.isEmpty()) {
+                bindAddr = new java.net.InetSocketAddress(bindHost, bindPort > 0 ? bindPort : 0);
+            } else {
+                bindAddr = new java.net.InetSocketAddress(bindPort > 0 ? bindPort : 0);
+            }
+            Channel serverChannel = bootstrap.bind(bindAddr).sync().channel();
             listenerPort = ((java.net.InetSocketAddress) serverChannel.localAddress()).getPort();
             listenerChannel = serverChannel;
             Log.info(format("P2P listener started on port %d", listenerPort));
@@ -152,8 +163,21 @@ public class P2PManager {
     }
 
     /**
+     * Get the addresses to advertise to the controller peer.
+     * If a specific bind host was configured, returns only that address.
+     * Otherwise enumerates all non-loopback site-local IPv4 addresses.
+     */
+    public List<String> getOfferAddresses() {
+        if (configuredBindHost != null && !configuredBindHost.isEmpty()) {
+            List<String> list = new ArrayList<>(1);
+            list.add(configuredBindHost);
+            return list;
+        }
+        return getLocalAddresses();
+    }
+
+    /**
      * Get all non-loopback site-local IPv4 addresses on this machine.
-     * Returns the addresses the controller should try to connect to.
      */
     public static List<String> getLocalAddresses() {
         List<String> addresses = new ArrayList<>();

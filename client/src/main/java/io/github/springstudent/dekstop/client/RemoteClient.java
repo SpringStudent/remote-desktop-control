@@ -54,13 +54,13 @@ public class RemoteClient extends RemoteFrame {
 
     private RobotsClient robotsClient;
 
-    public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort) {
+    public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort, String p2pBindAddress, int p2pBindPort) {
         remoteClient = this;
         this.serverIp = serverIp;
         this.serverPort = serverPort;
         this.clipboardServer = clipboardServer;
         this.robotsClient = new RobotsClient(robotPort);
-        this.controlled = new RemoteControlled();
+        this.controlled = new RemoteControlled(p2pBindAddress, p2pBindPort);
         this.controller = new RemoteController();
         this.remoteScreen = new RemoteScreen();
         this.connectServer();
@@ -225,9 +225,11 @@ public class RemoteClient extends RemoteFrame {
         if (System.getProperty("robotPort") != null) {
             robotPort = Integer.parseInt(System.getProperty("robotPort"));
         }
-        String serverIp = "192.168.0.109";
+        String serverIp = "192.168.0.110";
         Integer serverPort = 54321;
-        String clipboardServer = "http://192.168.0.109:12345/remote-desktop-control";
+        String clipboardServer = "http://192.168.0.110:12345/remote-desktop-control";
+        String p2pServerIp = null;
+        int p2pServerPort = 0;
         if (System.getProperty("configFile") != null) {
             Properties properties = new Properties();
             try (InputStream input = new FileInputStream(System.getProperty("configFile"))) {
@@ -244,11 +246,17 @@ public class RemoteClient extends RemoteFrame {
                 if (properties.getProperty("robotPort") != null) {
                     robotPort = Integer.parseInt(properties.getProperty("robotPort"));
                 }
+                if (properties.getProperty("p2pServerIp") != null) {
+                    p2pServerIp = properties.getProperty("p2pServerIp");
+                }
+                if (properties.getProperty("p2pServerPort") != null) {
+                    p2pServerPort = Integer.parseInt(properties.getProperty("p2pServerPort"));
+                }
             } catch (Exception e) {
                 Log.warn("Load config file error!", e);
             }
         }
-        RemoteClient remoteClient = new RemoteClient(serverIp, serverPort, clipboardServer, robotPort);
+        RemoteClient remoteClient = new RemoteClient(serverIp, serverPort, clipboardServer, robotPort, p2pServerIp, p2pServerPort);
     }
 
 }

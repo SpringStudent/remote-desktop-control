@@ -51,8 +51,16 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
     private Robot robot;
 
     private P2PManager p2pManager;
+    private String p2pBindAddress;
+    private int p2pBindPort;
 
     public RemoteControlled() {
+        this(null, 0);
+    }
+
+    public RemoteControlled(String p2pBindAddress, int p2pBindPort) {
+        this.p2pBindAddress = p2pBindAddress;
+        this.p2pBindPort = p2pBindPort;
         p2pManager = new P2PManager();
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();
@@ -370,9 +378,9 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
     private void startP2PListener() {
         new Thread(() -> {
             try {
-                int port = p2pManager.startListener();
+                int port = p2pManager.startListener(p2pBindAddress, p2pBindPort);
                 if (port > 0) {
-                    java.util.List<String> addresses = P2PManager.getLocalAddresses();
+                    java.util.List<String> addresses = p2pManager.getOfferAddresses();
                     Log.info(String.format("P2P offering addresses: %s, port: %d", addresses, port));
                     fireCmd(new CmdP2POffer(addresses, port));
                 }
