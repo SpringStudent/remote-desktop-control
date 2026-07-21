@@ -79,6 +79,12 @@ public class NettyDecoder extends ByteToMessageDecoder {
             case ChangePwd:
                 list.add(CmdChangePwd.decode(byteBuf));
                 break;
+            case P2P_OFFER:
+                list.add(CmdP2POffer.decode(byteBuf));
+                break;
+            case P2P_ANSWER:
+                list.add(CmdP2PAnswer.decode(byteBuf));
+                break;
             case ReqOpen:
                 list.add(CmdReqOpen.decode(byteBuf));
                 break;

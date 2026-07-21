@@ -43,6 +43,8 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
 
     private Channel channel;
 
+    private volatile Channel p2pChannel;
+
     static {
         rootDir = getProperty("java.io.tmpdir") + File.separator + "remoteDeskopControll";
         if (FileUtil.exist(rootDir)) {
@@ -74,11 +76,40 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
     }
 
     public void fireCmd(Cmd cmd) {
-        if (channel != null && channel.isActive()) {
-            channel.writeAndFlush(cmd);
+        Channel target = selectChannel(cmd);
+        if (target != null && target.isActive()) {
+            target.writeAndFlush(cmd);
         } else {
             Log.error("client fireCmd error,please check network connect");
         }
+    }
+
+    /**
+     * Select which channel to use: P2P direct channel for high-volume data messages,
+     * server relay channel for session/heartbeat messages.
+     */
+    private Channel selectChannel(Cmd cmd) {
+        if (p2pChannel != null && p2pChannel.isActive() && isP2PCandidate(cmd.getType())) {
+            return p2pChannel;
+        }
+        return channel;
+    }
+
+    public void setP2PChannel(Channel p2pChannel) {
+        this.p2pChannel = p2pChannel;
+    }
+
+    public Channel getP2PChannel() {
+        return p2pChannel;
+    }
+
+    private static boolean isP2PCandidate(CmdType type) {
+        return type == CmdType.Capture
+                || type == CmdType.MouseControl
+                || type == CmdType.KeyControl
+                || type == CmdType.CaptureConfig
+                || type == CmdType.CompressorConfig
+                || type == CmdType.SelectScreen;
     }
 
     protected void showMessageDialog(Object msg, int messageType) {

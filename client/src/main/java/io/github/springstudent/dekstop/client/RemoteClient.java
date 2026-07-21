@@ -159,6 +159,16 @@ public class RemoteClient extends RemoteFrame {
         controlled.setChannel(channel);
     }
 
+    /**
+     * Called by P2PChannelHandler when the P2P direct connection drops.
+     * Clears the P2P channel so subsequent messages fall back to server relay.
+     */
+    public void onP2PDisconnected() {
+        controller.setP2PChannel(null);
+        controlled.setP2PChannel(null);
+        Log.info("P2P channel cleared, falling back to server relay");
+    }
+
     public void stopClient() {
         Log.info("Remote client disconnected from server...");
 //        showMessageDialog("连接异常", JOptionPane.ERROR_MESSAGE);

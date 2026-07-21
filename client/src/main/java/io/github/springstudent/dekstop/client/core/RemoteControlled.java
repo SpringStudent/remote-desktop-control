@@ -17,6 +17,7 @@ import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.remote.RemoteScreenRobot;
 import io.github.springstudent.dekstop.common.remote.bean.RobotKeyControl;
 import io.github.springstudent.dekstop.common.remote.bean.RobotMouseControl;
+import io.netty.channel.Channel;
 
 import java.awt.*;
 import java.awt.event.InputEvent;
@@ -49,7 +50,10 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
 
     private Robot robot;
 
+    private P2PManager p2pManager;
+
     public RemoteControlled() {
+        p2pManager = new P2PManager();
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();
         captureEngine = new CaptureEngine(new RobotCaptureFactory(-1));
@@ -70,6 +74,8 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
     public void stop() {
         captureEngine.stop();
         compressorEngine.stop();
+        p2pManager.shutdown();
+        setP2PChannel(null);
         super.stop();
     }
 
@@ -93,6 +99,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
             if (cmdResCapture.getCode() == CmdResCapture.START_) {
                 RemoteClient.getRemoteClient().setControlledAndCloseSessionLabelVisible(true);
                 start();
+                startP2PListener();
             } else if (cmdResCapture.getCode() == CmdResCapture.STOP_) {
                 RemoteClient.getRemoteClient().setControlledAndCloseSessionLabelVisible(false);
                 stop();
@@ -134,6 +141,17 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
                 captureEngine.addListener(compressorEngine);
             }
             captureEngine.start();
+        } else if (cmd.getType().equals(CmdType.P2P_ANSWER)) {
+            CmdP2PAnswer answer = (CmdP2PAnswer) cmd;
+            if (answer.isSuccess()) {
+                Channel p2pCh = p2pManager.getP2PChannel();
+                if (p2pCh != null) {
+                    setP2PChannel(p2pCh);
+                    Log.info("P2P channel active (controlled side)");
+                }
+            } else {
+                Log.info("P2P connection failed, falling back to server relay (controlled side)");
+            }
         }
     }
 
@@ -347,5 +365,20 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
 //        robot.keyRelease(VK_CONTROL);
         nativeReleaseKey(VK_SHIFT);
         nativeReleaseKey(VK_CONTROL);
+    }
+
+    private void startP2PListener() {
+        new Thread(() -> {
+            try {
+                int port = p2pManager.startListener();
+                if (port > 0) {
+                    java.util.List<String> addresses = P2PManager.getLocalAddresses();
+                    Log.info(String.format("P2P offering addresses: %s, port: %d", addresses, port));
+                    fireCmd(new CmdP2POffer(addresses, port));
+                }
+            } catch (Exception e) {
+                Log.error(String.format("Failed to start P2P listener: %s", e.getMessage()));
+            }
+        }, "P2PListenerStarter").start();
     }
 }

@@ -14,6 +14,7 @@ import io.github.springstudent.dekstop.common.configuration.CaptureEngineConfigu
 import io.github.springstudent.dekstop.common.configuration.CompressorEngineConfiguration;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.remote.RemoteScreenListener;
+import io.netty.channel.Channel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -75,7 +76,10 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     private ArrayList<Counter<?>> counters;
 
+    private P2PManager p2pManager;
+
     public RemoteController() {
+        p2pManager = new P2PManager();
         captureEngineConfiguration = new CaptureEngineConfiguration();
         compressorEngineConfiguration = new CompressorEngineConfiguration();
         deCompressorEngine = new DeCompressorEngine(this);
@@ -166,6 +170,19 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
             }
         } else if (cmd.getType().equals(CmdType.ResRemoteClipboard)) {
             RemoteClient.getRemoteClient().getRemoteScreen().transferClipboarButton(true);
+        } else if (cmd.getType().equals(CmdType.P2P_OFFER)) {
+            handleP2POffer((CmdP2POffer) cmd);
+        } else if (cmd.getType().equals(CmdType.P2P_ANSWER)) {
+            CmdP2PAnswer answer = (CmdP2PAnswer) cmd;
+            if (answer.isSuccess()) {
+                Channel p2pCh = p2pManager.getP2PChannel();
+                if (p2pCh != null) {
+                    setP2PChannel(p2pCh);
+                    Log.info("P2P channel active (controller side)");
+                }
+            } else {
+                Log.info("P2P connection failed, falling back to server relay (controller side)");
+            }
         }
     }
 
@@ -524,5 +541,26 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     public void sendScreenSelect(int screenIndex) {
         fireCmd(new CmdSelectScreen(screenIndex));
+    }
+
+    private void handleP2POffer(CmdP2POffer offer) {
+        new Thread(() -> {
+            try {
+                Channel p2pCh = p2pManager.connect(offer.getAddresses(), offer.getPort());
+                boolean success = p2pCh != null;
+                if (success) {
+                    setP2PChannel(p2pCh);
+                }
+                fireCmd(new CmdP2PAnswer(success));
+            } catch (Exception e) {
+                Log.error(String.format("P2P connect error: %s", e.getMessage()));
+                fireCmd(new CmdP2PAnswer(false));
+            }
+        }, "P2PConnector").start();
+    }
+
+    public void onP2PDisconnected() {
+        setP2PChannel(null);
+        Log.info("P2P disconnected, falling back to server relay (controller side)");
     }
 }
