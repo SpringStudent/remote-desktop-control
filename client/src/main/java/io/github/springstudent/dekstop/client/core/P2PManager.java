@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static java.lang.String.format;
 
@@ -34,12 +35,14 @@ import static java.lang.String.format;
 public class P2PManager {
 
     private NioEventLoopGroup listenerGroup;
+    private NioEventLoopGroup connectorGroup;
     private Channel listenerChannel;
     private int listenerPort;
     private Channel p2pChannel;
     private final Object lock = new Object();
     private String configuredBindHost;
     private int configuredBindPort;
+    private volatile Consumer<Channel> onChannelAccepted;
 
     /**
      * Start a temporary Netty server socket.
@@ -102,8 +105,8 @@ public class P2PManager {
             try {
                 Log.info(format("P2P trying to connect to %s:%d", addr, port));
                 Bootstrap bootstrap = new Bootstrap();
-                NioEventLoopGroup group = new NioEventLoopGroup(1);
-                Channel ch = bootstrap.group(group)
+                connectorGroup = new NioEventLoopGroup(1);
+                Channel ch = bootstrap.group(connectorGroup)
                         .channel(NioSocketChannel.class)
                         .option(ChannelOption.TCP_NODELAY, true)
                         .option(ChannelOption.SO_KEEPALIVE, true)
@@ -127,6 +130,10 @@ public class P2PManager {
                 }
             } catch (Exception e) {
                 Log.warn(format("P2P connection to %s:%d failed: %s", addr, port, e.getMessage()));
+                if (connectorGroup != null) {
+                    connectorGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS);
+                    connectorGroup = null;
+                }
             }
         }
         Log.warn(format("P2P connection failed to all %d addresses", addresses.size()));
@@ -135,12 +142,21 @@ public class P2PManager {
 
     /**
      * Store a P2P channel that was accepted by the listener (controlled side).
+     * Also invokes the onChannelAccepted callback to notify the controlled peer
+     * immediately, without waiting for the relay-round-tripped CmdP2PAnswer.
      */
     public void setAcceptedChannel(Channel channel) {
         synchronized (lock) {
             this.p2pChannel = channel;
         }
         Log.info(format("P2P connection accepted from %s", channel.remoteAddress()));
+        // Notify the controlled peer so it can activate P2P outbound routing immediately.
+        // This avoids the race condition where CmdP2PAnswer (via relay) arrives before
+        // the P2P listener event loop has processed this accept.
+        Consumer<Channel> callback = onChannelAccepted;
+        if (callback != null) {
+            callback.accept(channel);
+        }
     }
 
     /**
@@ -160,6 +176,14 @@ public class P2PManager {
      */
     public boolean isP2PActive() {
         return getP2PChannel() != null;
+    }
+
+    /**
+     * Register a callback invoked when a P2P channel is accepted by the listener.
+     * Called from the listener's event loop thread — the callback should be fast.
+     */
+    public void setOnChannelAccepted(Consumer<Channel> callback) {
+        this.onChannelAccepted = callback;
     }
 
     /**
@@ -235,5 +259,10 @@ public class P2PManager {
                 p2pChannel = null;
             }
         }
+        if (connectorGroup != null) {
+            connectorGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS);
+            connectorGroup = null;
+        }
+        onChannelAccepted = null;
     }
 }

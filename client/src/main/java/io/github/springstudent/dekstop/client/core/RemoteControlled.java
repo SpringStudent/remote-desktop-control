@@ -152,10 +152,19 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
         } else if (cmd.getType().equals(CmdType.P2PAnswer)) {
             CmdP2PAnswer answer = (CmdP2PAnswer) cmd;
             if (answer.isSuccess()) {
-                Channel p2pCh = p2pManager.getP2PChannel();
-                if (p2pCh != null) {
-                    setP2PChannel(p2pCh);
-                    Log.info("P2P channel active (controlled side)");
+                // P2P channel was already activated via the onChannelAccepted callback
+                // in setAcceptedChannel(). Here we just confirm the controller side.
+                if (getP2PChannel() != null) {
+                    Log.info("P2P channel active (controlled side), controller confirmed");
+                } else {
+                    // Fallback: if the callback didn't fire (e.g. race), activate now
+                    Channel p2pCh = p2pManager.getP2PChannel();
+                    if (p2pCh != null) {
+                        setP2PChannel(p2pCh);
+                        Log.info("P2P channel active (controlled side, via answer)");
+                    } else {
+                        Log.warn("P2P answer received but no P2P channel found (controlled side)");
+                    }
                 }
             } else {
                 Log.info("P2P connection failed, falling back to server relay (controlled side)");
@@ -376,6 +385,9 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
     }
 
     private void startP2PListener() {
+        // Register callback so P2P channel is activated the moment a TCP connection
+        // is accepted, rather than waiting for the relay-round-tripped CmdP2PAnswer.
+        p2pManager.setOnChannelAccepted(this::setP2PChannel);
         new Thread(() -> {
             try {
                 int port = p2pManager.startListener(p2pBindAddress, p2pBindPort);
