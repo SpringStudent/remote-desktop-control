@@ -27,10 +27,8 @@ streaming media: https://github.com/SpringStudent/a-da
     * View different screens in real time by selecting them.
 
 6. **LAN P2P Direct Connection**
-    * When both peers are on the same LAN, screen capture and input events bypass the relay server
-    * Reduces latency and server bandwidth usage
     * Transparent fallback to server relay if direct connection fails or drops
-    * Configurable bind address and port via `configFile` properties `p2pServerIp` / `p2pServerPort`
+    * When both peers are on the same LAN, screen capture and input events bypass the relay server,Reduces latency and server bandwidth usage
 
 7. **Configurable Zstd Compression Level**
     * Adjustable compression level (1–9) via the compression settings dialog
