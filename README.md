@@ -1,74 +1,62 @@
 [English](README.md) | [中文](README_zh.md)
 
-### Remote Desktop Application
+# Remote Desktop Control
 
-This project is a **Java** and **Netty** based remote desktop control application. Through this application, users can
-connect and control remote devices in real-time. It is based on the client-server-client version of the core code
-from [Dayon GitHub Repository](https://github.com/RetGal/Dayon). Special thanks to the Dayon project author.
+A **Java** / **Netty** based remote desktop control application with real-time screen sharing
+and remote input. Built on the client-server-client relay model, with automatic P2P direct
+connection for LAN scenarios.
 
-If you have a higher frame rate requirement, you can check out my other remote desktop control project based on
-streaming media: https://github.com/SpringStudent/a-da
+Based on [Dayon](https://github.com/RetGal/Dayon) — a remote desktop assistant.
+Re-architected into a client-server-client relay model with P2P direct connection support.
 
-### Features
+> For higher frame rate requirements, check out my streaming-based remote desktop project:
+> [a-da](https://github.com/SpringStudent/a-da)
 
-1. **Real-time Remote Desktop Control**
-    * Remotely control another device with minimal latency.
+## Features
 
-2. **Customizable Settings**
-    * Configure screen capture intervals and enable/disable color mode to optimize performance.
-
-3. **Cross-platform Support**
-    * Developed using Java, compatible with most operating systems.
-
-4. **Clipboard Support**
-    * No speed limit file transfer.
-
-5. **Multiscreen Support**
-    * View different screens in real time by selecting them.
-
-6. **LAN P2P Direct Connection**
-    * Transparent fallback to server relay if direct connection fails or drops
-    * When both peers are on the same LAN, screen capture and input events bypass the relay server,Reduces latency and server bandwidth usage
-
-7. **Configurable Zstd Compression Level**
-    * Adjustable compression level (1–9) via the compression settings dialog
-    * Level 1 (fastest) for LAN, higher levels for bandwidth-constrained WAN
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | **Real-time Control** | Remote desktop with minimal latency |
+| 2 | **Customizable Capture** | Adjustable tick interval, color/grayscale mode |
+| 3 | **Cross-platform** | Java-based, runs on Windows / macOS / Linux |
+| 4 | **Clipboard Sharing** | Bidirectional text & file transfer (HTTP chunked upload) |
+| 5 | **Multi-monitor** | Select and switch between different screens |
+| 6 | **LAN P2P Direct** | Screen data & input bypass the relay server on LAN; transparent auto-fallback to relay on failure |
+| 7 | **Zstd Compression** | Configurable level 1–9; level 1 for LAN, higher for WAN |
 
 ## Architecture
 
 ```
-                         ┌──────────────────────────────────┐
-                         │    MySQL (Clipboard / File Meta)  │
-                         └────────────┬──────────┬──────────┘
-                                      │          │
-                         ┌────────────┴──────────┴──────────┐
-                         │    Server HTTP API (12345)       │
-                         │  /clipboard/save, /get           │
-                         │  /file/uploadFileChunk, /download│
-                         └────────────┬──────────┬──────────┘
-                                      │          │
-                               HTTP upload/  HTTP upload/
-                               download       download
-                                      │          │
-┌──────────────┐    Netty TCP      ┌─┴──────────┴─┐     Netty TCP      ┌──────────────┐
+                          ┌────────────────────────────────┐
+                          │ MySQL (Clipboard / File Meta)  │
+                          └───────────┬─────────┬──────────┘
+                                     │         │
+                          ┌────────────────────────────────┐
+                          │    Server HTTP API (12345)     │
+                          │      /clipboard/save, /get     │
+                          │  /file/uploadFileChunk, /download│
+                          └───────────┬─────────┬──────────┘
+                                     │         │
+                                HTTP upload/download
+                                     │         │
+┌──────────────┐                   ┌─┴──────────┴─┐                   ┌──────────────┐
 │  Controller  │ ◄───────────────► │    Server    │ ◄───────────────► │  Controlled  │
-│              │   signaling +     │   (Relay)    │   signaling +     │              │
-│              │      relay        │              │      relay        │              │
+│              │ signaling + relay │   (Relay)    │ signaling + relay │              │
+│              │                   │              │                   │              │
 │ • render     │                   │ • register   │                   │ • capture    │
 │ • input      │                   │ • route      │                   │ • compress   │
 │ • P2P        │                   │ • pair       │                   │ • execute    │
 │              │                   │              │                   │ • P2P        │
 └──────┬───────┘                   └──────────────┘                   └──────┬───────┘
-       │                                                                    │
-       └─────────────────── P2P direct (LAN) ───────────────────────────────┘
-             screen / input / clipboard text — auto fallback to relay
-                                                                    │
-                                                                    │ Socket
-                                                                    ▼
-                                                             ┌──────────────┐
-                                                             │    Robots     │
-                                                             │  (lock scrn)  │
-                                                             └──────────────┘
+       │                                                                     │
+       └─────────────────────────────────────────────────────────────────────┤
+          P2P(LAN)screen / input / clipboard text — auto fallback to relay
+                                                                             │ Socket
+                                                                             ▼
+                                                                       ┌────────────┐
+                                                                       │   Robots   │
+                                                                       │(lock scrn) │
+                                                                       └────────────┘
 
   Robots is used only on Windows lock screen, called by Controlled via Socket.
   Clipboard: text over Netty (relay or P2P); file over HTTP (upload/download
@@ -77,79 +65,110 @@ streaming media: https://github.com/SpringStudent/a-da
 
 ## Screenshots
 
-### Main Control Panel
+### Launcher
 
-![remote-desktop-control](z_launcher.png)
+![launcher](z_launcher.png)
 
-### Remote Connection Established
+### Remote Session
 
-![remote-desktop-control](z_screen.png)
+![screen](z_screen.png)  ![monitor](z_monitor.png)
 
-![remote-desktop-control](z_monitor.png)
+### Settings
 
-### Settings Menu
+![capture settings](z_screen_setting.png)  ![compress settings](z_compress_setting.png)  ![clipboard](z_clipboard.png)
 
-![remote-desktop-control](z_screen_setting.png)
-![remote-desktop-control](z_compress_setting.png)
-![remote-desktop-control](z_clipboard.png)
+## Environment
 
-### Environment
+- **Java** 8 or higher
+- **Maven** for dependency management
+- **MySQL** for clipboard & file metadata (Server only)
 
-* Java 8 or higher
-* Maven for dependency management
+## Quick Start
 
-### Build and Run
+### 1. Clone & Build
 
-1. Clone the repository：
-   ```bash
-   git https://github.com/SpringStudent/remote-desktop-control
-   cd remote-desktop-control
-   ```
+```bash
+git clone https://github.com/SpringStudent/remote-desktop-control
+cd remote-desktop-control
+mvn clean install
+```
 
-2. Build the project:
-   ```bash
-   mvn clean install
-   ```
+### 2. Run Server
 
-3. Run the server: Export remote-desktop-control.sql to mysql's databases,Modify the application.properties configuration file with the database information and the
-   netty.server.server and port configurations.
-   ```bash
-   RemoteServer.java
-   ```
+Import `remote-desktop-control.sql` into MySQL, then edit `application.properties`:
 
-4. Run the client: Modify the RemoteClient.java parameters for serverIp and serverPort and clipboardServer addr,
-   or use a configFile for externalized configuration:
-   ```properties
-   # configFile example
-   serverIp=192.168.0.110
-   serverPort=54321
-   clipboardServer=http://192.168.0.110:12345/remote-desktop-control
-   robotPort=55678
-   # Optional P2P settings — omit to auto-detect LAN addresses and use a random port
-   p2pServerIp=192.168.1.100
-   p2pServerPort=55432
-   ```
-   ```bash
-   RemoteClient.java -DconfigFile=/path/to/config.properties
-   ```
-### Demo Video
+```properties
+# Database
+spring.datasource.url=jdbc:mysql://localhost:3306/remote_desktop_control
+spring.datasource.username=root
+spring.datasource.password=your_password
 
-[Bilibili Video](https://www.bilibili.com/video/BV11qNCeNEoZ/)
+# Netty
+netty.server.host=0.0.0.0
+netty.server.port=54321
+```
 
-### Future Plan
+```bash
+# Start the server
+java -cp server/target/server.jar io.github.springstudent.dekstop.server.RemoteServer
+```
 
-* http-based clipboard transmission (finish)
-* multi-screen select support (finish)
-* internationalize  
+### 3. Run Client
 
-### Q&A
+Via command line arguments or an external config file:
 
-* It is recommended that both the control end and the controlled end run the program with administrator privileges,
-  otherwise, some programs on the controlled end may not be controllable due to lack of permissions.
-* For the best control experience, it is recommended to set the input language preference on the control end to "
-  English (United States)".
-* The stability of this project has been verified in production environments and is ready for reliable use.
-* In the Windows lock screen scenario, it is not possible to capture screenshots or simulate keyboard and mouse events. Refer to the following project for a solution
-  https://github.com/SpringStudent/windows-lock-helper
-* The robots project is a service introduced to address the issue of being unable to capture screens in Windows lock screen scenarios. 
-  This service is not required for non-Windows systems and does not need to be started. For instructions on using this service, please refer to the windows-lock-helper project.
+```properties
+# config.properties
+serverIp=192.168.0.110
+serverPort=54321
+clipboardServer=http://192.168.0.110:12345/remote-desktop-control
+robotPort=55678
+# Optional — P2P direct connection; omit to auto-detect LAN address & random port
+p2pServerIp=192.168.1.100
+p2pServerPort=55432
+```
+
+```bash
+java -DconfigFile=/path/to/config.properties -jar client/target/client.jar
+```
+
+## Demo
+
+[![Bilibili Video](https://img.shields.io/badge/Bilibili-Demo-blue)](https://www.bilibili.com/video/BV11qNCeNEoZ/)
+
+## Roadmap
+
+- [x] HTTP-based clipboard transfer
+- [x] Multi-monitor switching
+- [ ] Internationalization (i18n)
+
+## FAQ
+
+<details>
+<summary><b>Why does the controlled machine not respond to input?</b></summary>
+
+Run both the controller and the controlled client **as Administrator**. Some applications
+on the controlled side cannot be manipulated without elevated privileges.
+</details>
+
+<details>
+<summary><b>Why are some keys not working correctly?</b></summary>
+
+Set the input language preference on the controller to **"English (United States)"** for
+the best control experience.
+</details>
+
+<details>
+<summary><b>How stable is this project?</b></summary>
+
+The stability has been verified in production environments and is ready for reliable use.
+</details>
+
+<details>
+<summary><b>Windows lock screen — no screen capture or input?</b></summary>
+
+`java.awt.Robot` cannot work on the Windows lock screen. Use
+[windows-lock-helper](https://github.com/SpringStudent/windows-lock-helper) and the
+**Robots** module as a workaround. The Robots service is only needed on Windows and only
+for lock screen scenarios.
+</details>
