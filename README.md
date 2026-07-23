@@ -34,6 +34,47 @@ streaming media: https://github.com/SpringStudent/a-da
     * Adjustable compression level (1–9) via the compression settings dialog
     * Level 1 (fastest) for LAN, higher levels for bandwidth-constrained WAN
 
+## Architecture
+
+```
+                         ┌──────────────────────────────────┐
+                         │    MySQL (Clipboard / File Meta)  │
+                         └────────────┬──────────┬──────────┘
+                                      │          │
+                         ┌────────────┴──────────┴──────────┐
+                         │    Server HTTP API (12345)       │
+                         │  /clipboard/save, /get           │
+                         │  /file/uploadFileChunk, /download│
+                         └────────────┬──────────┬──────────┘
+                                      │          │
+                               HTTP upload/  HTTP upload/
+                               download       download
+                                      │          │
+┌──────────────┐    Netty TCP      ┌─┴──────────┴─┐     Netty TCP      ┌──────────────┐
+│  Controller  │ ◄───────────────► │    Server    │ ◄───────────────► │  Controlled  │
+│              │   signaling +     │   (Relay)    │   signaling +     │              │
+│              │      relay        │              │      relay        │              │
+│ • render     │                   │ • register   │                   │ • capture    │
+│ • input      │                   │ • route      │                   │ • compress   │
+│ • P2P        │                   │ • pair       │                   │ • execute    │
+│              │                   │              │                   │ • P2P        │
+└──────┬───────┘                   └──────────────┘                   └──────┬───────┘
+       │                                                                    │
+       └─────────────────── P2P direct (LAN) ───────────────────────────────┘
+             screen / input / clipboard text — auto fallback to relay
+                                                                    │
+                                                                    │ Socket
+                                                                    ▼
+                                                             ┌──────────────┐
+                                                             │    Robots     │
+                                                             │  (lock scrn)  │
+                                                             └──────────────┘
+
+  Robots is used only on Windows lock screen, called by Controlled via Socket.
+  Clipboard: text over Netty (relay or P2P); file over HTTP (upload/download
+  chunks via FileController, only the file ID is notified through Netty).
+```
+
 ## Screenshots
 
 ### Main Control Panel
