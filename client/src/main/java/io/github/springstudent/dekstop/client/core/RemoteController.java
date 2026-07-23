@@ -101,6 +101,8 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     @Override
     public void stop() {
+        p2pManager.shutdown();
+        setP2PChannel(null);
         super.stop();
     }
 
@@ -410,8 +412,6 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
                 pane.add(cachePanel);
 
                 // ── 交互逻辑 ──
-                final JPanel maxRowRef = maxRow;
-                final JPanel purgeRowRef = purgeRow;
                 final JLabel cacheHintRef = cacheHint;
 
                 Runnable updateVisibility = () -> {

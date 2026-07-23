@@ -25,10 +25,6 @@ import java.util.function.Consumer;
 import static java.lang.String.format;
 
 /**
- * Manages P2P direct connections between controller and controlled peers on the same LAN.
- * The controlled peer starts a temporary Netty server socket; the controller peer connects to it.
- * If the direct connection fails, both peers transparently fall back to server relay.
- *
  * @author ZhouNing
  * @date 2026/07/21
  */
@@ -169,13 +165,6 @@ public class P2PManager {
             }
             return null;
         }
-    }
-
-    /**
-     * @return true if the P2P channel is established and active
-     */
-    public boolean isP2PActive() {
-        return getP2PChannel() != null;
     }
 
     /**

@@ -9,9 +9,6 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import static java.lang.String.format;
 
 /**
- * Netty handler for the P2P direct channel.
- * Uses the same message dispatch as the server relay channel, so both
- * RemoteController and RemoteControlled process messages identically.
  *
  * @author ZhouNing
  * @date 2026/07/21
