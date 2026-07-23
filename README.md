@@ -109,8 +109,7 @@ netty.server.port=54321
 ```
 
 ```bash
-# Start the server
-java -cp server/target/server.jar io.github.springstudent.dekstop.server.RemoteServer
+java -jar server/target/server-1.0.0.jar
 ```
 
 ### 3. Run Client
@@ -129,7 +128,7 @@ p2pServerPort=55432
 ```
 
 ```bash
-java -DconfigFile=/path/to/config.properties -jar client/target/client.jar
+java -DconfigFile=/path/to/config.properties -jar client/target/RemoteClient.jar
 ```
 
 ## Demo
