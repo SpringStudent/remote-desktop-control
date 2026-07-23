@@ -26,15 +26,14 @@ client-server-client中继模型，并增加了 P2P 直连支持。
 ## 架构
 
 ```
-                          ┌────────────────────────────────┐
-                          │ MySQL (Clipboard / File Meta)  │
-                          └───────────┬─────────┬──────────┘
+                         ┌────────────────────────────────┐
+                         │ MySQL (Clipboard / File Meta)  │
+                         └───────────┬─────────┬──────────┘
                                      │         │
-                          ┌────────────────────────────────┐
-                          │    Server HTTP API (12345)     │
-                          │      /clipboard/save, /get     │
-                          │  /file/uploadFileChunk, /download│
-                          └───────────┬─────────┬──────────┘
+                         ┌────────────────────────────────┐
+                         │          Server HTTP API       │
+                         │          FileController        │
+                         └───────────┬─────────┬──────────┘
                                      │         │
                                 HTTP upload/download
                                      │         │

@@ -27,15 +27,14 @@ Re-architected into a client-server-client relay model with P2P direct connectio
 ## Architecture
 
 ```
-                          ┌────────────────────────────────┐
-                          │ MySQL (Clipboard / File Meta)  │
-                          └───────────┬─────────┬──────────┘
+                         ┌────────────────────────────────┐
+                         │ MySQL (Clipboard / File Meta)  │
+                         └───────────┬─────────┬──────────┘
                                      │         │
-                          ┌────────────────────────────────┐
-                          │    Server HTTP API (12345)     │
-                          │      /clipboard/save, /get     │
-                          │  /file/uploadFileChunk, /download│
-                          └───────────┬─────────┬──────────┘
+                         ┌────────────────────────────────┐
+                         │          Server HTTP API       │
+                         │          FileController        │
+                         └───────────┬─────────┬──────────┘
                                      │         │
                                 HTTP upload/download
                                      │         │
