@@ -121,6 +121,8 @@ serverIp=192.168.0.110
 serverPort=54321
 clipboardServer=http://192.168.0.110:12345/remote-desktop-control
 robotPort=55678
+# Optional — set false to skip connecting to the Robots (lock-screen) server
+robotEnabled=true
 # Optional — P2P direct connection; omit to auto-detect LAN address & random port
 p2pServerIp=192.168.1.100
 p2pServerPort=55432

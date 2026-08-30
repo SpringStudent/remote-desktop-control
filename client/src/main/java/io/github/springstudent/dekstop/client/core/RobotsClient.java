@@ -23,6 +23,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  **/
 public class RobotsClient {
     private final int port;
+
+    /**
+     * 是否允许连接 robots server，可通过 configFile 配置 robotEnabled 关闭
+     */
+    private final boolean enabled;
+
     private volatile boolean connected = false;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private Socket socket;
@@ -45,9 +51,10 @@ public class RobotsClient {
 
     private final Timer timer = new HashedWheelTimer(100, TimeUnit.MILLISECONDS, 512);
 
-    public RobotsClient(int port) {
+    public RobotsClient(int port, boolean enabled) {
         this.port = port;
-        if (RemoteClient.getRemoteClient().getOsId() == 'w') {
+        this.enabled = enabled;
+        if (enabled && RemoteClient.getRemoteClient().getOsId() == 'w') {
             connectWithRetry();
         }
     }
@@ -154,6 +161,9 @@ public class RobotsClient {
      * 通用发送方法
      */
     public synchronized void send(Object obj) throws IOException {
+        if (!enabled) {
+            throw new IOException("RobotsClient is disabled by config (robotEnabled=false).");
+        }
         if (!connected || socket == null || socket.isClosed()) {
             throw new IOException("Not connected to server.");
         }

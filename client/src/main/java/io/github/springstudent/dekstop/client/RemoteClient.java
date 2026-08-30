@@ -54,12 +54,12 @@ public class RemoteClient extends RemoteFrame {
 
     private RobotsClient robotsClient;
 
-    public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort, String p2pBindAddress, int p2pBindPort) {
+    public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort, boolean robotEnabled, String p2pBindAddress, int p2pBindPort) {
         remoteClient = this;
         this.serverIp = serverIp;
         this.serverPort = serverPort;
         this.clipboardServer = clipboardServer;
-        this.robotsClient = new RobotsClient(robotPort);
+        this.robotsClient = new RobotsClient(robotPort, robotEnabled);
         this.controlled = new RemoteControlled(p2pBindAddress, p2pBindPort);
         this.controller = new RemoteController();
         this.remoteScreen = new RemoteScreen();
@@ -222,8 +222,12 @@ public class RemoteClient extends RemoteFrame {
 
     public static void main(String[] args) throws Exception {
         int robotPort = 55678;
+        boolean robotEnabled = true;
         if (System.getProperty("robotPort") != null) {
             robotPort = Integer.parseInt(System.getProperty("robotPort"));
+        }
+        if (System.getProperty("robotEnabled") != null) {
+            robotEnabled = Boolean.parseBoolean(System.getProperty("robotEnabled"));
         }
         String serverIp = "192.168.0.110";
         Integer serverPort = 54321;
@@ -246,6 +250,9 @@ public class RemoteClient extends RemoteFrame {
                 if (properties.getProperty("robotPort") != null) {
                     robotPort = Integer.parseInt(properties.getProperty("robotPort"));
                 }
+                if (properties.getProperty("robotEnabled") != null) {
+                    robotEnabled = Boolean.parseBoolean(properties.getProperty("robotEnabled"));
+                }
                 if (properties.getProperty("p2pServerIp") != null) {
                     p2pServerIp = properties.getProperty("p2pServerIp");
                 }
@@ -256,7 +263,7 @@ public class RemoteClient extends RemoteFrame {
                 Log.warn("Load config file error!", e);
             }
         }
-        RemoteClient remoteClient = new RemoteClient(serverIp, serverPort, clipboardServer, robotPort, p2pServerIp, p2pServerPort);
+        RemoteClient remoteClient = new RemoteClient(serverIp, serverPort, clipboardServer, robotPort, robotEnabled, p2pServerIp, p2pServerPort);
     }
 
 }

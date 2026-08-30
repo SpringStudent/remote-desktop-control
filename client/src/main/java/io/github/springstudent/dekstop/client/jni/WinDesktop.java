@@ -4,6 +4,7 @@ import com.sun.jna.*;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 import io.github.springstudent.dekstop.client.RemoteClient;
+import io.github.springstudent.dekstop.common.log.Log;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -20,7 +21,8 @@ public interface WinDesktop extends Library {
     WinDesktop NULL_INSTANCE = new WinDesktop() {
         @Override
         public boolean IsCurrentInputDesktopJNA() {
-            return false;
+            // DLL 不可用时无法检测锁屏，视为普通桌面，走 java.awt.Robot
+            return true;
         }
 
         @Override
@@ -59,6 +61,11 @@ public interface WinDesktop extends Library {
     static WinDesktop loadWinDesktop() {
         if (RemoteClient.getRemoteClient().getOsId() == 'w') {
             try {
+                if (!Platform.is64Bit()) {
+                    Log.warn("WinDesktop64.dll is a 64-bit native library, but the current JVM is 32-bit. "
+                            + "Lock-screen capture/input will be unavailable; please run with a 64-bit JVM.");
+                    return NULL_INSTANCE;
+                }
                 String dllPath = extractDll("/dll/WinDesktop64.dll");
                 return Native.loadLibrary(dllPath, WinDesktop.class);
             } catch (Exception e) {

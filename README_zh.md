@@ -120,6 +120,8 @@ serverIp=192.168.0.110
 serverPort=54321
 clipboardServer=http://192.168.0.110:12345/remote-desktop-control
 robotPort=55678
+# 可选 — 设为 false 则不连接 Robots(锁屏) 服务
+robotEnabled=true
 # 可选 — P2P 直连; 不填则自动检测局域网地址并使用随机端口
 p2pServerIp=192.168.1.100
 p2pServerPort=55432
