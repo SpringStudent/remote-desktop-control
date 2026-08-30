@@ -2,9 +2,11 @@ package io.github.springstudent.desktop.robots;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import com.sun.jna.Platform;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
+import io.github.springstudent.dekstop.common.log.Log;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -60,6 +62,11 @@ public interface WinDesktop extends Library {
     static WinDesktop loadWinDesktop() {
         if (RobotsServer.getOsId() == 'w') {
             try {
+                if (!Platform.is64Bit()) {
+                    Log.warn("WinDesktop64.dll is a 64-bit native library, but the current JVM is 32-bit. "
+                            + "Lock-screen capture/input will be unavailable; please run with a 64-bit JVM.");
+                    return NULL_INSTANCE;
+                }
                 String dllPath = extractDll("/dll/WinDesktop64.dll");
                 return Native.loadLibrary(dllPath, WinDesktop.class);
             } catch (Exception e) {
