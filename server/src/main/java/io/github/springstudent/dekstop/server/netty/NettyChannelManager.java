@@ -24,19 +24,44 @@ public class NettyChannelManager {
         deviceCodeChannelMap.put(deviceCode, channel);
     }
 
+    /**
+     * 按客户端上报的持久化 deviceCode 注册连接。
+     *
+     * @return 同码下先前已存在的 channel(可能为 null),由调用方决定是否顶替/关闭
+     */
+    public static synchronized Channel registerChannel(String deviceCode, Channel channel) {
+        return deviceCodeChannelMap.put(deviceCode, channel);
+    }
+
     public static Channel getChannel(String deviceCode) {
         return deviceCodeChannelMap.get(deviceCode);
     }
 
     public static synchronized void removeChannelAndBrother(Channel channel) {
+        String deviceCode = NettyUtils.getDeviceCode(channel);
+        // 只有映射仍指向本 channel 时才移除:同码设备重连后可能已把映射换到新 channel,
+        // 若无条件按 code 删除会把新连接误删。
+        if (deviceCode != null && deviceCodeChannelMap.get(deviceCode) == channel) {
+            deviceCodeChannelMap.remove(deviceCode);
+        }
         String controllFlag = NettyUtils.getControllFlag(channel);
-        deviceCodeChannelMap.remove(NettyUtils.getDeviceCode(channel));
         if (StrUtil.isNotEmpty(controllFlag)) {
             NettyChannelBrother channelBrother = null;
             if (controllFlag.equals(Constants.CONTROLLED)) {
-                channelBrother = channelBrotherMap.remove(NettyUtils.getDeviceCode(channel));
+                channelBrother = channelBrotherMap.get(deviceCode);
+                if (channelBrother != null && channelBrother.getControlled() == channel) {
+                    channelBrotherMap.remove(deviceCode);
+                } else {
+                    channelBrother = null;
+                }
             } else if (controllFlag.equals(Constants.CONTROLLER)) {
-                channelBrother = channelBrotherMap.remove(NettyUtils.getControllDeviceCode(channel));
+                String controlledCode = NettyUtils.getControllDeviceCode(channel);
+                channelBrother = channelBrotherMap.get(controlledCode);
+                if (channelBrother != null && channelBrother.getController() == channel) {
+                    channelBrotherMap.remove(controlledCode);
+                } else {
+                    channelBrother = null;
+                }
             }
             if (channelBrother != null) {
                 channelBrother.stopControl(CmdReqCapture.STOP_CAPTURE_CHANNEL_INACTIVE);

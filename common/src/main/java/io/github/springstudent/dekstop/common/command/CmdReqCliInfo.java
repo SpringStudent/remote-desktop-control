@@ -15,9 +15,21 @@ public class CmdReqCliInfo extends Cmd {
 
     private String osName;
 
-    public CmdReqCliInfo(int screenNum, String osName) {
+    /**
+     * 客户端持久化的本机 deviceCode(可为空:服务端将回退为随机生成)
+     */
+    private String deviceCode;
+
+    /**
+     * 客户端持久化的本机访问密码(可为空:服务端将回退为随机生成)
+     */
+    private String password;
+
+    public CmdReqCliInfo(int screenNum, String osName, String deviceCode, String password) {
         this.screenNum = screenNum;
         this.osName = osName;
+        this.deviceCode = deviceCode;
+        this.password = password;
     }
 
     @Override
@@ -27,7 +39,9 @@ public class CmdReqCliInfo extends Cmd {
 
     @Override
     public int getWireSize() {
-        return 8 + osName.getBytes(StandardCharsets.UTF_8).length;
+        return 8 + osName.getBytes(StandardCharsets.UTF_8).length
+                + 8 + deviceCode.getBytes(StandardCharsets.UTF_8).length
+                + 8 + password.getBytes(StandardCharsets.UTF_8).length;
     }
 
     public int getScreenNum() {
@@ -38,9 +52,17 @@ public class CmdReqCliInfo extends Cmd {
         return osName;
     }
 
+    public String getDeviceCode() {
+        return deviceCode;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
     @Override
     public String toString() {
-        return String.format("CmdClientInfo={screenNum:%d,osName:%s}", screenNum, osName);
+        return String.format("CmdClientInfo={screenNum:%d,osName:%s,deviceCode:%s,password:%s}", screenNum, osName, deviceCode, password);
     }
 
     @Override
@@ -49,6 +71,12 @@ public class CmdReqCliInfo extends Cmd {
         byte[] osNameBytes = osName.getBytes(StandardCharsets.UTF_8);
         out.writeInt(osNameBytes.length);
         out.writeBytes(osNameBytes);
+        byte[] deviceCodeBytes = deviceCode.getBytes(StandardCharsets.UTF_8);
+        out.writeInt(deviceCodeBytes.length);
+        out.writeBytes(deviceCodeBytes);
+        byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
+        out.writeInt(passwordBytes.length);
+        out.writeBytes(passwordBytes);
     }
 
     public static CmdReqCliInfo decode(ByteBuf in) {
@@ -57,6 +85,14 @@ public class CmdReqCliInfo extends Cmd {
         byte[] osNameBytes = new byte[osNameLength];
         in.readBytes(osNameBytes);
         String osName = new String(osNameBytes, StandardCharsets.UTF_8);
-        return new CmdReqCliInfo(screenNum, osName);
+        int deviceCodeLength = in.readInt();
+        byte[] deviceCodeBytes = new byte[deviceCodeLength];
+        in.readBytes(deviceCodeBytes);
+        String deviceCode = new String(deviceCodeBytes, StandardCharsets.UTF_8);
+        int passwordLength = in.readInt();
+        byte[] passwordBytes = new byte[passwordLength];
+        in.readBytes(passwordBytes);
+        String password = new String(passwordBytes, StandardCharsets.UTF_8);
+        return new CmdReqCliInfo(screenNum, osName, deviceCode, password);
     }
 }

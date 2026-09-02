@@ -31,7 +31,10 @@ public class RemoteChannelHandler extends SimpleChannelInboundHandler<Cmd> {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         RemoteClient.getRemoteClient().setChannel(ctx.channel());
-        ctx.channel().writeAndFlush(new CmdReqCliInfo(ScreenUtilities.getNumberOfScreens(), System.getProperty("os.name")));
+        // 带上本机持久化的 deviceCode/password,由服务端注册为该连接身份(重连/重启后保持稳定)
+        RemoteClient remoteClient = RemoteClient.getRemoteClient();
+        ctx.channel().writeAndFlush(new CmdReqCliInfo(ScreenUtilities.getNumberOfScreens(), System.getProperty("os.name"),
+                remoteClient.getDeviceCode(), remoteClient.getPassword()));
     }
 
 

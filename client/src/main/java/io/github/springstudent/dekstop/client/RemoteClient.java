@@ -1,9 +1,11 @@
 package io.github.springstudent.dekstop.client;
 
+import io.github.springstudent.dekstop.client.config.ClientConfigStore;
 import io.github.springstudent.dekstop.client.core.*;
 import io.github.springstudent.dekstop.client.netty.RemoteChannelHandler;
 import io.github.springstudent.dekstop.client.netty.RemoteStateIdleHandler;
 import io.github.springstudent.dekstop.common.command.*;
+import io.github.springstudent.dekstop.common.configuration.Preferences;
 import io.github.springstudent.dekstop.common.log.Log;
 import io.github.springstudent.dekstop.common.protocol.NettyDecoder;
 import io.github.springstudent.dekstop.common.protocol.NettyEncoder;
@@ -54,8 +56,14 @@ public class RemoteClient extends RemoteFrame {
 
     private RobotsClient robotsClient;
 
+    private ClientConfigStore configStore;
+
     public RemoteClient(String serverIp, Integer serverPort, String clipboardServer, int robotPort, boolean robotEnabled, String p2pBindAddress, int p2pBindPort) {
         remoteClient = this;
+        this.configStore = new ClientConfigStore(Preferences.getPreferences());
+        // 先展示持久化的稳定身份(未连上服务端也可读);连上后服务端回显同值,不会跳动
+        setDeviceCodeAndPassword(configStore.getDeviceCode(), configStore.getPassword());
+        reloadRemoteDeviceHistory();
         this.serverIp = serverIp;
         this.serverPort = serverPort;
         this.clipboardServer = clipboardServer;
@@ -68,6 +76,8 @@ public class RemoteClient extends RemoteFrame {
 
     @Override
     public void changePassword(String deviceCode, String password) {
+        // 同步持久化新密码,保证重连/重启后仍然生效
+        configStore.setPassword(password);
         CmdChangePwd cmd = new CmdChangePwd(password);
         controller.fireCmd(cmd);
     }
@@ -132,6 +142,33 @@ public class RemoteClient extends RemoteFrame {
                 bootstrap.config().group().schedule(() -> connect(bootstrap, order), 5, TimeUnit.SECONDS);
             }
         });
+    }
+
+    public ClientConfigStore getConfigStore() {
+        return configStore;
+    }
+
+    /**
+     * 一次远程控制真正建立(控制端收到 ResCapture.START)后回调:
+     * 将该设备 code 及其校验通过的密码记入本地连接历史,并在 UI 线程刷新下拉。
+     */
+    public void onRemoteConnected(String deviceCode, String password) {
+        if (deviceCode == null || deviceCode.isEmpty()) {
+            return;
+        }
+        configStore.addOrUpdateHistory(deviceCode, password);
+        SwingUtilities.invokeLater(this::reloadRemoteDeviceHistory);
+    }
+
+    /**
+     * 本机持久化的 deviceCode / password(客户端自持,重连与重启保持稳定)。
+     */
+    public String getDeviceCode() {
+        return configStore.getDeviceCode();
+    }
+
+    public String getPassword() {
+        return configStore.getPassword();
     }
 
     public RemoteController getController() {
@@ -229,9 +266,9 @@ public class RemoteClient extends RemoteFrame {
         if (System.getProperty("robotEnabled") != null) {
             robotEnabled = Boolean.parseBoolean(System.getProperty("robotEnabled"));
         }
-        String serverIp = "192.168.0.110";
+        String serverIp = "127.0.0.1";
         Integer serverPort = 54321;
-        String clipboardServer = "http://192.168.0.110:12345/remote-desktop-control";
+        String clipboardServer = "http://127.0.0.1:12345/remote-desktop-control";
         String p2pServerIp = null;
         int p2pServerPort = 0;
         if (System.getProperty("configFile") != null) {

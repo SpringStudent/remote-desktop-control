@@ -2,6 +2,9 @@ package io.github.springstudent.dekstop.client.core;
 
 import cn.hutool.core.util.ReUtil;
 import cn.hutool.core.util.StrUtil;
+import io.github.springstudent.dekstop.client.RemoteClient;
+import io.github.springstudent.dekstop.client.config.ClientConfigStore;
+import io.github.springstudent.dekstop.client.config.ConnectionHistory;
 import io.github.springstudent.dekstop.common.utils.EmptyUtils;
 
 import javax.swing.*;
@@ -10,6 +13,7 @@ import javax.swing.text.PlainDocument;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.List;
 
 /**
  * @author ZhouNing
@@ -19,7 +23,11 @@ public abstract class RemoteFrame extends JFrame {
     private JLabel titleLabel;
     private JTextField deviceCodeField;
     private JTextField passwordField;
-    private JTextField remoteDeviceField;
+    /**
+     * 远程设备代码输入框:可编辑下拉,项为历史连接(显示为 "code (备注)")。
+     */
+    private JComboBox<String> remoteDeviceCombo;
+    private String remoteDeviceCodeSelected;
     private JButton connectButton;
     private JLabel controlledLabel;
     private JLabel closeSessionLabel;
@@ -37,7 +45,7 @@ public abstract class RemoteFrame extends JFrame {
     private void initFrame() {
         this.setUndecorated(true);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setSize(600, 400);
+        this.setSize(680, 400);
         this.setLayout(new BorderLayout());
         this.setLocationRelativeTo(null);
     }
@@ -110,14 +118,16 @@ public abstract class RemoteFrame extends JFrame {
         this.deviceCodeField = new JTextField(10);
         deviceCodeField.setText("");
         deviceCodeField.setEditable(false);
+        deviceCodeField.setToolTipText("本机设备代码:重启/重连保持不变,供对方连接");
         topPanel.add(deviceCodeField, gbc);
         gbc.gridx = 2;
-        topPanel.add(new JLabel("临时密码:"), gbc);
+        topPanel.add(new JLabel("连接密码:"), gbc);
         gbc.gridx = 3;
         JPanel passwordPanel = new JPanel(new BorderLayout());
         this.passwordField = new JTextField(10);
         passwordField.setText("");
         passwordField.setEditable(false);
+        passwordField.setToolTipText("本机连接密码:固定不变,可点右侧✎修改");
         passwordField.setDocument(new PlainDocument() {
             @Override
             public void insertString(int offs, String str, javax.swing.text.AttributeSet a) throws javax.swing.text.BadLocationException {
@@ -168,27 +178,20 @@ public abstract class RemoteFrame extends JFrame {
         gbc.gridy = 0;
         bottomPanel.add(new JLabel("远程设备代码:"), gbc);
         gbc.gridx = 1;
-        this.remoteDeviceField = new JTextField(15);
-        bottomPanel.add(remoteDeviceField, gbc);
+        this.remoteDeviceCombo = new JComboBox<>();
+        remoteDeviceCombo.setEditable(true);
+        remoteDeviceCombo.setToolTipText("可输入远程设备代码,或从下拉历史中选择(可编辑备注)");
+        bottomPanel.add(remoteDeviceCombo, gbc);
 
         gbc.gridx = 2;
         this.connectButton = new JButton("连接");
-        this.connectButton.addActionListener(e -> {
-            if (StrUtil.isEmpty(remoteDeviceField.getText())) {
-                showMessageDialog("请输入远程设备代码", JOptionPane.ERROR_MESSAGE);
-            } else if (remoteDeviceField.getText().equals(deviceCodeField.getText())) {
-                showMessageDialog("远程设备代码不能为自己", JOptionPane.ERROR_MESSAGE);
-            } else if (!ReUtil.isMatch("^[a-zA-Z0-9]+$", remoteDeviceField.getText())) {
-                showMessageDialog("远程设备代码只能为数字与字母的组合", JOptionPane.ERROR_MESSAGE);
-            } else {
-                if (!isConnect()) {
-                    showMessageDialog("请等待连接连接服务器成功", JOptionPane.ERROR_MESSAGE);
-                } else {
-                    beforeOpenRemoteScreen(remoteDeviceField.getText());
-                }
-            }
-        });
+        this.connectButton.addActionListener(e -> connectRemoteDevice());
         bottomPanel.add(connectButton, gbc);
+
+        gbc.gridx = 3;
+        JButton historyButton = new JButton("历史");
+        historyButton.addActionListener(e -> openHistoryManager());
+        bottomPanel.add(historyButton, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 1;
@@ -229,16 +232,134 @@ public abstract class RemoteFrame extends JFrame {
     protected abstract void beforeOpenRemoteScreen(String text);
 
     public final void openRemoteScreen() {
-        String password = JOptionPane.showInputDialog(
+        String code = remoteDeviceCodeSelected != null ? remoteDeviceCodeSelected : currentRemoteDeviceCode();
+        // 历史中缓存过该设备的密码则预填,省去重输;未缓存则为空
+        ClientConfigStore store = store();
+        String cachedPassword = null;
+        if (store != null && code != null && !code.isEmpty()) {
+            ConnectionHistory history = store.findHistory(code);
+            if (history != null) {
+                cachedPassword = history.getPassword();
+            }
+        }
+        String password = (String) JOptionPane.showInputDialog(
                 this,
                 "请输入远程设备密码：",
                 "输入密码",
-                JOptionPane.PLAIN_MESSAGE
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                null,
+                cachedPassword == null ? "" : cachedPassword
         );
         if (password != null && !password.trim().isEmpty()) {
-            openRemoteScreen(remoteDeviceField.getText(), password.trim());
+            openRemoteScreen(code, password.trim());
         } else if (password != null) {
             showMessageDialog("密码不能为空", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * 「连接」按钮:从下拉/编辑框中读取目标代码并发起连接。
+     */
+    private void connectRemoteDevice() {
+        connectToRemoteDevice(currentRemoteDeviceCode());
+    }
+
+    /**
+     * 对指定目标 deviceCode 发起连接(校验 + 记录选中 + 触发握手)。供「连接」按钮与历史管理弹窗共用。
+     * 连接历史仅在真正连接成功时记录(见 onRemoteConnected)。
+     *
+     * @param code 目标设备代码(纯代码,不含备注后缀)
+     */
+    public final void connectToRemoteDevice(String code) {
+        if (StrUtil.isEmpty(code)) {
+            showMessageDialog("请输入远程设备代码", JOptionPane.ERROR_MESSAGE);
+        } else if (code.equals(deviceCodeField.getText())) {
+            showMessageDialog("远程设备代码不能为自己", JOptionPane.ERROR_MESSAGE);
+        } else if (!ReUtil.isMatch("^[a-zA-Z0-9]+$", code)) {
+            showMessageDialog("远程设备代码只能为数字与字母的组合", JOptionPane.ERROR_MESSAGE);
+        } else {
+            if (!isConnect()) {
+                showMessageDialog("请等待连接连接服务器成功", JOptionPane.ERROR_MESSAGE);
+            } else {
+                remoteDeviceCodeSelected = code;
+                remoteDeviceCombo.getEditor().setItem(code);
+                beforeOpenRemoteScreen(code);
+            }
+        }
+    }
+
+    /**
+     * 打开连接历史管理弹窗(表格行内编辑备注 / 选中即连 / 删除)。
+     */
+    private void openHistoryManager() {
+        ClientConfigStore store = store();
+        if (store == null) {
+            showMessageDialog("本地配置尚未就绪", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        RemoteHistoryDialog dialog = new RemoteHistoryDialog(this, store);
+        dialog.setVisible(true);
+        // 弹窗内可能改了备注/删除了记录,关窗后刷新主窗下拉,保持与本地历史一致
+        reloadRemoteDeviceHistory();
+    }
+
+    /**
+     * 从下拉框编辑框中解析出纯 deviceCode(丢弃 " (备注)" 部分)。
+     */
+    private String currentRemoteDeviceCode() {
+        if (remoteDeviceCombo == null) {
+            return "";
+        }
+        Object item = remoteDeviceCombo.getEditor().getItem();
+        return parseDeviceCode(item == null ? null : item.toString());
+    }
+
+    private static String parseDeviceCode(String text) {
+        if (text == null) {
+            return "";
+        }
+        String trimmed = text.trim();
+        int idx = trimmed.indexOf(" (");
+        return idx > 0 ? trimmed.substring(0, idx).trim() : trimmed;
+    }
+
+    private static String toDisplay(ConnectionHistory history) {
+        String code = history.getDeviceCode();
+        String note = history.getNote();
+        return (note == null || note.trim().isEmpty()) ? code : code + " (" + note + ")";
+    }
+
+    private ClientConfigStore store() {
+        RemoteClient remoteClient = RemoteClient.getRemoteClient();
+        return remoteClient == null ? null : remoteClient.getConfigStore();
+    }
+
+    /**
+     * 用本地连接历史重建下拉项(子类在本地存储就绪后调用一次)。
+     */
+    public final void reloadRemoteDeviceHistory() {
+        if (remoteDeviceCombo == null) {
+            return;
+        }
+        ClientConfigStore store = store();
+        String current = currentRemoteDeviceCode();
+        String restore = null;
+        remoteDeviceCombo.removeAllItems();
+        if (store != null) {
+            for (ConnectionHistory history : store.listHistory()) {
+                String display = toDisplay(history);
+                remoteDeviceCombo.addItem(display);
+                if (current != null && current.equals(history.getDeviceCode())) {
+                    restore = display;
+                }
+            }
+        }
+        if (restore != null) {
+            remoteDeviceCombo.setSelectedItem(restore);
+        } else if (current != null && !current.isEmpty()) {
+            // 保留用户新输入但尚未进入历史的代码
+            remoteDeviceCombo.getEditor().setItem(current);
         }
     }
 

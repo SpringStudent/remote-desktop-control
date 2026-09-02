@@ -39,8 +39,32 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
             map.put("password", cmdChangePwd.getPassword());
             NettyUtils.updateCliInfo(ctx.channel(), map);
         } else if (cmd.getType().equals(CmdType.ReqCliInfo)) {
+            // 注册设备:采纳客户端上报的持久化 deviceCode/password(新客户端),
+            // 否则回退为服务端随机生成(兼容未携带持久化身份的老客户端)。
             CmdReqCliInfo cmdReqCliInfo = (CmdReqCliInfo) cmd;
-            NettyUtils.updateCliInfo(ctx.channel(), BeanUtil.beanToMap(cmdReqCliInfo));
+            String deviceCode = cmdReqCliInfo.getDeviceCode();
+            String password = cmdReqCliInfo.getPassword();
+            if (!StrUtil.isNotEmpty(deviceCode)) {
+                deviceCode = RandomUtil.randomString(8);
+                while (NettyChannelManager.getChannel(deviceCode) != null) {
+                    deviceCode = RandomUtil.randomString(8);
+                }
+                password = RandomUtil.randomString(6);
+            } else if (!StrUtil.isNotEmpty(password)) {
+                password = RandomUtil.randomString(6);
+            }
+            NettyUtils.updateDeviceCode(ctx.channel(), deviceCode);
+            Map<String, Object> cliInfo = new HashMap<>(BeanUtil.beanToMap(cmdReqCliInfo));
+            cliInfo.put("password", password);
+            cliInfo.put("deviceCode", deviceCode);
+            NettyUtils.updateCliInfo(ctx.channel(), cliInfo);
+            Channel displaced = NettyChannelManager.registerChannel(deviceCode, ctx.channel());
+            if (displaced != null && displaced != ctx.channel() && displaced.isActive()) {
+                // 同码设备重连:顶替旧连接(触发其 channelInactive 清理,含中控关系)
+                log.warn("deviceCode {} already online,displace old channel {}", deviceCode, displaced.remoteAddress());
+                displaced.close();
+            }
+            ctx.channel().writeAndFlush(new CmdResCliInfo(deviceCode, password));
         } else if (cmd.getType().equals(CmdType.ReqPing)) {
             ctx.writeAndFlush(new CmdResPong()).addListeners((ChannelFutureListener) future -> {
                 if (!future.isSuccess()) {
@@ -113,21 +137,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
                 }
             }
         }
-    }
-
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        String deviceCode = RandomUtil.randomString(8);
-        while (NettyChannelManager.getChannel(deviceCode) != null) {
-            deviceCode = RandomUtil.randomString(8);
-        }
-        String password = RandomUtil.randomString(6);
-        NettyUtils.updateDeviceCode(ctx.channel(), deviceCode);
-        NettyChannelManager.addChannel(deviceCode, ctx.channel());
-        Map<String, Object> map = new HashMap();
-        map.put("password", password);
-        NettyUtils.updateCliInfo(ctx.channel(), map);
-        ctx.channel().writeAndFlush(new CmdResCliInfo(deviceCode, password));
     }
 
     @Override

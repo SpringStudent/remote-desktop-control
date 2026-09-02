@@ -48,6 +48,11 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     private String deviceCode;
 
+    /**
+     * 本次控制会话使用的远程设备密码,仅在控制成功(ResCapture.START)后随历史缓存
+     */
+    private String sessionPassword;
+
     private DeCompressorEngine deCompressorEngine;
 
     private CaptureEngineConfiguration captureEngineConfiguration;
@@ -118,6 +123,8 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
 
     public void openSession(String deviceCode, String password) {
         this.deviceCode = deviceCode;
+        // 记住本次会话用于控制的密码,仅在校验成功(ResCapture.START)后写入连接历史
+        this.sessionPassword = password;
         fireCmd(new CmdReqCapture(deviceCode, CmdReqCapture.START_CAPTURE, password));
     }
 
@@ -143,6 +150,8 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
         } else if (cmd.getType().equals(CmdType.ResCapture)) {
             CmdResCapture cmdResCapture = (CmdResCapture) cmd;
             if (cmdResCapture.getCode() == CmdResCapture.START) {
+                // 只有真正控制建立成功才记入连接历史(连同校验通过的密码一起缓存)
+                RemoteClient.getRemoteClient().onRemoteConnected(deviceCode, sessionPassword);
                 RemoteClient.getRemoteClient().getRemoteScreen().launch(cmdResCapture.getScreenNum());
                 start();
             } else if (cmdResCapture.getCode() == CmdResCapture.STOP) {

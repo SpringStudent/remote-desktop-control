@@ -78,7 +78,17 @@ public final class Preferences {
     }
 
     private static File getOrCreatePreferencesFile() throws IOException {
-        final File file = new File(getProperty("remoteDesktopControl.home"), getProperty("remoteDesktopControl.application.name") + ".properties");
+        // Fall back to sane defaults when the home/app-name properties are not supplied
+        // by the launcher, so persistence does not silently target a CWD "null.properties".
+        String home = getProperty("remoteDesktopControl.home");
+        if (home == null || home.trim().isEmpty()) {
+            home = getProperty("user.home");
+        }
+        String applicationName = getProperty("remoteDesktopControl.application.name");
+        if (applicationName == null || applicationName.trim().isEmpty()) {
+            applicationName = "remoteDesktopControl";
+        }
+        final File file = new File(home, applicationName + ".properties");
         if (file.exists() && file.isDirectory()) {
             throw new IOException(format("Error creating %s", file.getName()));
         }
@@ -160,6 +170,43 @@ public final class Preferences {
 
         Map<String, String> getEntries() {
             return entries;
+        }
+    }
+
+    /**
+     * Convenience single-value write (calls {@link #update(Props)} under the hood).
+     * The value is applied in-memory immediately; disk write happens asynchronously
+     * (see {@link #setupPersister}) unless {@link #flush()} is called.
+     */
+    public void setPreference(String name, String value) {
+        Props props = new Props();
+        props.set(name, value);
+        update(props);
+    }
+
+    /**
+     * Synchronously flushes any pending change to disk.
+     * Used where a value must survive an immediate process exit (e.g., the
+     * device identity generated on first launch).
+     */
+    public void flush() {
+        synchronized (cloneLOCK) {
+            if (isNull() || writeError.get() || !dirty.get() || file == null) {
+                return;
+            }
+            final Properties cloned = (Properties) props.clone();
+            dirty.set(false);
+            try (PrintWriter out = new PrintWriter(file)) {
+                Log.debug("Preferences (flush) [%s]", () -> file.getAbsolutePath());
+                cloned.store(out, null);
+                out.flush();
+            } catch (FileNotFoundException e) {
+                Log.error("Preferences (flush) permission denied");
+                writeError.set(true);
+            } catch (IOException ex) {
+                Log.error("Preferences flush error!", ex);
+                writeError.set(true);
+            }
         }
     }
 
