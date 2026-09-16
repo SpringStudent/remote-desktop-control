@@ -3,6 +3,7 @@ package io.github.springstudent.dekstop.server.netty;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import io.github.springstudent.dekstop.common.bean.Constants;
 import io.github.springstudent.dekstop.common.command.*;
 import io.github.springstudent.dekstop.common.utils.EmptyUtils;
 import io.github.springstudent.dekstop.common.utils.NettyUtils;
@@ -31,7 +32,9 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
         if (cmd == null) {
             return;
         }
-        log.info("server recived cmd ={}", cmd);
+        // 每帧画面、每次鼠标移动都会走到这里,用 info 级别打日志等于在 Netty 事件循环上
+        // 逐帧同步写终端 + 写磁盘,会引入明显抖动。排查问题时用 debug 级别打开。
+        log.debug("server recived cmd ={}", cmd);
         NettyUtils.updateReaderTime(ctx.channel(), System.currentTimeMillis());
         if (cmd.getType().equals(CmdType.ChangePwd)) {
             CmdChangePwd cmdChangePwd = (CmdChangePwd) cmd;
@@ -114,7 +117,24 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
                     ctx.channel().writeAndFlush(new CmdResCapture(CmdResCapture.STOP));
                 }
             }
-        } else if (cmd.getType().equals(CmdType.Capture) || cmd.getType().equals(CmdType.ResRemoteClipboard) || cmd.getType().equals(CmdType.P2POffer)) {
+        } else if (cmd.getType().equals(CmdType.Capture)) {
+            Channel controllerChannel = NettyChannelManager.getControllerChannel(ctx.channel());
+            if (controllerChannel == null) {
+                ctx.channel().writeAndFlush(new CmdResCapture(CmdResCapture.STOP_));
+            } else {
+                // 画面帧不能丢:每帧只携带"自上一帧以来变化的 tile",丢掉一帧,那些 tile
+                // 永远补不回来(被控端不会重复发送没有再次变化的 tile),表现为永久花屏。
+                // 所以这里不丢帧,而是施加背压:控制端写缓冲积压超过水位线时,停止读取被控端,
+                // TCP 接收窗口随之关闭 → 被控端 socket 写满 → 被控端暂停采集,把帧率降到
+                // 链路能承受的水平。控制端有积压、被控端还在以固定帧率采集的这段时间里,
+                // 服务器内存里堆积的旧帧正是"画面越来越滞后"的来源。
+                if (!controllerChannel.isWritable() && ctx.channel().config().isAutoRead()) {
+                    log.info("controller channel congested, pause reading from {}", ctx.channel().remoteAddress());
+                    ctx.channel().config().setAutoRead(false);
+                }
+                controllerChannel.writeAndFlush(cmd);
+            }
+        } else if (cmd.getType().equals(CmdType.ResRemoteClipboard) || cmd.getType().equals(CmdType.P2POffer)) {
             Channel controllerChannel = NettyChannelManager.getControllerChannel(ctx.channel());
             if (controllerChannel != null) {
                 controllerChannel.writeAndFlush(cmd);
@@ -143,6 +163,23 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<Cmd> {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         NettyChannelManager.removeChannelAndBrother(ctx.channel());
         super.channelInactive(ctx);
+    }
+
+    /**
+     * 控制端通道重新可写(积压已消化)时恢复读取被控端,解除 {@link #channelRead0} 中施加的背压。
+     */
+    @Override
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+        // 只处理控制端通道:被控端通道的 controllDeviceCode 为 null,
+        // 直接查 NettyChannelManager 会因 ConcurrentHashMap 不接受 null key 抛 NPE。
+        if (ctx.channel().isWritable() && Constants.CONTROLLER.equals(NettyUtils.getControllFlag(ctx.channel()))) {
+            Channel controlledChannel = NettyChannelManager.getControlledChannel(ctx.channel());
+            if (controlledChannel != null && !controlledChannel.config().isAutoRead()) {
+                log.info("controller channel drained, resume reading from {}", controlledChannel.remoteAddress());
+                controlledChannel.config().setAutoRead(true);
+            }
+        }
+        super.channelWritabilityChanged(ctx);
     }
 
     @Override

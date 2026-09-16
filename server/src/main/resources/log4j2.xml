@@ -16,13 +16,25 @@
                 <SizeBasedTriggeringPolicy size="10MB" />
             </Policies>
         </RollingFile>
+
+        <!--
+            异步包装:日志在 Netty 事件循环上产生,同步写终端/写磁盘会直接变成转发抖动,
+            日志轮转(10MB 压缩)时尤其明显。异步化后事件循环只做入队。
+            blocking=false 表示队列满时丢弃日志而不是阻塞业务线程 —— 对转发服务来说这是对的取舍。
+        -->
+        <Async name="AsyncConsole" blocking="false">
+            <AppenderRef ref="Console" />
+        </Async>
+        <Async name="AsyncFile" blocking="false">
+            <AppenderRef ref="File" />
+        </Async>
     </Appenders>
 
     <Loggers>
         <!-- Root Logger -->
         <Root level="info">
-            <AppenderRef ref="Console" />
-            <AppenderRef ref="File" />
+            <AppenderRef ref="AsyncConsole" />
+            <AppenderRef ref="AsyncFile" />
         </Root>
     </Loggers>
 </Configuration>

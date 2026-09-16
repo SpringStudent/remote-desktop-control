@@ -1,6 +1,7 @@
 package io.github.springstudent.dekstop.server.netty;
 
 import cn.hutool.core.thread.NamedThreadFactory;
+import io.github.springstudent.dekstop.common.bean.Constants;
 import io.github.springstudent.dekstop.common.protocol.NettyDecoder;
 import io.github.springstudent.dekstop.common.protocol.NettyEncoder;
 import io.netty.bootstrap.ServerBootstrap;
@@ -46,7 +47,14 @@ public class NettyServer implements InitializingBean, DisposableBean {
         bootstrap.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.SO_REUSEADDR, true)
-                .option(ChannelOption.TCP_NODELAY, true)
+                // 注意:option() 只作用于监听套接字,连接级的参数必须用 childOption(),
+                // 否则 Nagle 算法会给鼠标/键盘这类小包叠加最多 40ms 的延迟。
+                .childOption(ChannelOption.TCP_NODELAY, true)
+                .childOption(ChannelOption.SO_KEEPALIVE, true)
+                // 画面转发的积压上限:超过高水位即停止读取被控端(见 NettyServerHandler),
+                // 让背压通过 TCP 传回被控端,而不是把帧堆在服务器内存里。
+                .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, new WriteBufferWaterMark(
+                        Constants.RELAY_WRITE_BUFFER_LOW_WATER_MARK, Constants.RELAY_WRITE_BUFFER_HIGH_WATER_MARK))
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel socketChannel) throws Exception {
