@@ -266,9 +266,9 @@ public class RemoteClient extends RemoteFrame {
         if (System.getProperty("robotEnabled") != null) {
             robotEnabled = Boolean.parseBoolean(System.getProperty("robotEnabled"));
         }
-        String serverIp = "121.40.28.112";
+        String serverIp = "127.0.0.1";
         Integer serverPort = 54321;
-        String clipboardServer = "http://121.40.28.112:12345/remote-desktop-control";
+        String clipboardServer = "http://127.0.0.1:12345/remote-desktop-control";
         String p2pServerIp = null;
         int p2pServerPort = 0;
         if (System.getProperty("configFile") != null) {
