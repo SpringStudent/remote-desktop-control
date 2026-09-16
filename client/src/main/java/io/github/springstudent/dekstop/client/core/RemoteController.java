@@ -137,7 +137,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
     }
 
     @Override
-    public void handleCmd(Channel channel, Cmd cmd) {
+    public void handleCmd(Cmd cmd) {
         if (cmd.getType().equals(CmdType.ResOpen)) {
             CmdResOpen cmdResOpen = (CmdResOpen) cmd;
             if (cmdResOpen.getCode() == CmdResOpen.OFFLINE) {
@@ -173,7 +173,7 @@ public class RemoteController extends RemoteControll implements DeCompressorEngi
                 showMessageDialog("密码错误", JOptionPane.ERROR_MESSAGE);
             }
         } else if (cmd.getType().equals(CmdType.Capture)) {
-            deCompressorEngine.handleCapture((CmdCapture) cmd, channel);
+            deCompressorEngine.handleCapture((CmdCapture) cmd);
             countReceivedBit(cmd);
         } else if (cmd.getType().equals(CmdType.ClipboardText) || cmd.getType().equals(CmdType.ClipboardTransfer)) {
             if (needSetClipboard(cmd)) {

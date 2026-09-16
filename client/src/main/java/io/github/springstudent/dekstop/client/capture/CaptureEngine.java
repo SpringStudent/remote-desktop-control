@@ -14,7 +14,6 @@ import io.github.springstudent.dekstop.common.utils.UnitUtilities;
 import java.awt.*;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BooleanSupplier;
 
 import static java.lang.Math.min;
 import static java.lang.String.format;
@@ -43,16 +42,6 @@ public class CaptureEngine implements ReConfigurable<CaptureEngineConfiguration>
 
     private boolean reconfigured;
 
-    /**
-     * 画面数据能不能发得出去(写缓冲未积压)。默认永远可发,由发送方(被控端)注入实际判断。
-     */
-    private volatile BooleanSupplier networkAvailableCheck = () -> true;
-
-    /**
-     * 仅由采集线程读写,用于只在状态切换时打日志。
-     */
-    private boolean networkPaused;
-
     public CaptureEngine(CaptureFactory captureFactory) {
         this.captureFactory = captureFactory;
         this.captureDimension = captureFactory.getDimension();
@@ -74,15 +63,6 @@ public class CaptureEngine implements ReConfigurable<CaptureEngineConfiguration>
     @Override
     public void reconfigure(CaptureEngineConfiguration configuration) {
         configure(configuration);
-    }
-
-    /**
-     * 注入"下游是否还跟得上"的判断,用于在下游拥塞时跳过采集。
-     *
-     * @param check 返回 false 表示画面数据已发不出去(发送通道写缓冲积压)
-     */
-    public void setNetworkAvailableCheck(BooleanSupplier check) {
-        this.networkAvailableCheck = check;
     }
 
     public void addListener(CaptureEngineListener listener) {
@@ -145,27 +125,6 @@ public class CaptureEngine implements ReConfigurable<CaptureEngineConfiguration>
                     Log.info(format("Capture engine has been reconfigured [tile: %d] %s", captureId, configuration));
                     reconfigured = false;
                 }
-            }
-
-            if (!networkAvailableCheck.getAsBoolean()) {
-                // 下游拥塞:跳过本次采集,把帧率降到链路能承受的水平。
-                //
-                // 这样不会丢数据:跳过采集就不会执行下面的 updatePreviousCapture,
-                // 于是这些变化会在下一次采集时一并算进 dirty tiles 发出去。
-                // 反过来,如果把已经压缩好的帧丢掉,那些 tile 就永远补不回来了
-                // (被控端不会重发没有再次变化的 tile),表现为永久花屏。
-                if (!networkPaused) {
-                    networkPaused = true;
-                    Log.info(format("网络拥塞,暂停采集(帧率自适应链路)[tile: %d]", captureId));
-                }
-                skipped = syncOnTick(start, captureCount, captureId, tick);
-                captureCount += skipped;
-                captureId += skipped;
-                continue;
-            }
-            if (networkPaused) {
-                networkPaused = false;
-                Log.info("网络恢复,继续采集");
             }
 
             ++captureCount;

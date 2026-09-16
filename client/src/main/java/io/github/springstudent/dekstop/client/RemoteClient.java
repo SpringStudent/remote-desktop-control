@@ -186,8 +186,8 @@ public class RemoteClient extends RemoteFrame {
             NettyUtils.updateDeviceCode(ctx.channel(), clientInfo.getDeviceCode());
             updateConnectionStatus(true);
         } else {
-            controller.handleCmd(ctx.channel(), cmd);
-            controlled.handleCmd(ctx.channel(), cmd);
+            controller.handleCmd(cmd);
+            controlled.handleCmd(cmd);
         }
     }
 

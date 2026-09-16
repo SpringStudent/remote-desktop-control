@@ -70,7 +70,6 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
         compressorEngine.configure(compressorEngineConfiguration);
         captureEngine.addListener(compressorEngine);
         compressorEngine.addListener(this);
-        captureEngine.setNetworkAvailableCheck(this::isScreenChannelWritable);
         try {
             robot = new Robot();
             robot.setAutoDelay(1);
@@ -103,7 +102,7 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
     }
 
     @Override
-    public void handleCmd(Channel channel, Cmd cmd) {
+    public void handleCmd(Cmd cmd) {
         if (cmd.getType().equals(CmdType.ResCapture)) {
             CmdResCapture cmdResCapture = (CmdResCapture) cmd;
             if (cmdResCapture.getCode() == CmdResCapture.START_) {
@@ -181,19 +180,6 @@ public class RemoteControlled extends RemoteControll implements CompressorEngine
     @Override
     public void onCompressed(int captureId, CompressionMethod compressionMethod, CompressorEngineConfiguration compressionConfiguration, MemByteBuffer compressed) {
         fireCmd(new CmdCapture(captureId, compressionMethod, compressionConfiguration, compressed));
-    }
-
-    /**
-     * 画面数据的发送通道当前是否可写。写缓冲积压(发不出去)说明下游消费不过来:
-     * 公网中转时可能是链路带宽不够,也可能是控制端解压/渲染跟不上。
-     * <p>
-     * 通道选择逻辑与 {@link RemoteControll#selectChannel}(Capture 走 P2P 优先)保持一致。
-     * 尚未建连时返回 true,避免连接建立前一直不采集。
-     */
-    private boolean isScreenChannelWritable() {
-        Channel p2pChannel = getP2PChannel();
-        Channel target = p2pChannel != null && p2pChannel.isActive() ? p2pChannel : getChannel();
-        return target == null || !target.isActive() || target.isWritable();
     }
 
     @Override

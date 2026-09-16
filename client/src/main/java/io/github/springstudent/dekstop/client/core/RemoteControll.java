@@ -314,10 +314,7 @@ public abstract class RemoteControll implements ClipboardOwner, RemoteClpboardLi
         }
     }
 
-    /**
-     * @param channel 收到该命令的通道(中转或 P2P),用于在消费不过来时对上游施加背压
-     */
-    public abstract void handleCmd(Channel channel, Cmd cmd);
+    public abstract void handleCmd(Cmd cmd);
 
     public abstract String getType();
 

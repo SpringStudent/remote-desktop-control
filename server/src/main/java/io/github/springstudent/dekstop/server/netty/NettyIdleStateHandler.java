@@ -22,11 +22,6 @@ public class NettyIdleStateHandler extends IdleStateHandler {
 
     @Override
     protected void channelIdle(ChannelHandlerContext ctx, IdleStateEvent evt) throws Exception {
-        if (!ctx.channel().config().isAutoRead()) {
-            // 施加背压期间(见 NettyServerHandler)我们主动停止读取该通道,心跳和画面都到不了,
-            // 此时读空闲是预期的,不能据此判定客户端掉线。
-            return;
-        }
         Long lastReadTime = NettyUtils.getReaderTime(ctx.channel());
         if (lastReadTime != null && System.currentTimeMillis() - lastReadTime > Constants.CLIENT_SESSION_TIMEOUT_MILLS) {
             log.warn("server close channel,client heartbeat timeout");
